@@ -60,7 +60,7 @@ class Tracker:
 
         Parameters
         ----------
-        detections : List[siamese_tracking.detection.Detection]
+        detections : List[deep_sort.detection.Detection]
             A list of detections at the current time step.
 
         """

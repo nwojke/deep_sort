@@ -45,9 +45,9 @@ def iou_cost(tracks, detections, track_indices=None,
 
     Parameters
     ----------
-    tracks : List[siamese_tracking.track.Track]
+    tracks : List[deep_sort.track.Track]
         A list of tracks.
-    detections : List[siamese_tracking.detection.Detection]
+    detections : List[deep_sort.detection.Detection]
         A list of detections.
     track_indices : Optional[List[int]]
         A list of indices to tracks that should be matched. Defaults to
