@@ -9,16 +9,17 @@ This repository contains code for *Simple Online and Realtime Tracking with a De
 Tracking code:
 
 * NumPy
-* sklean
+* sklean (for linear assignment)
+* OpenCV (for visualization)
 
-Additional, feature generation requires:
+Additionally, feature generation requires:
 
 * TensorFlow
 * tfslim
 
 ## Installation
 
-First, clone the Git repository:
+First, clone the repository:
 ```
 git clone https://github.com/nwojke/deep_sort.git
 ```
@@ -31,7 +32,7 @@ The following example starts the tracker on one of the
 [MOT16 benchmark](https://motchallenge.net/data/MOT16/)
 sequences.
 We assume resources have been extracted to the repository root directory and
-the MOT16 benchmark data resides in `./MOT16`:
+the MOT16 benchmark data is in `./MOT16`:
 ```
 python deep_sort_app.py \
     --sequence_dir=./MOT16/test/MOT16-06
@@ -40,21 +41,29 @@ python deep_sort_app.py \
     --nn_budget=100 \
     --display=True
 ```
+Check `python deep_sort_app.py -h` for an overview of available options.
+There are also scripts in the repository to visualize results, generate videos,
+and evaluate the MOT challenge benchmark.
 
-## Generating detections.
+## Generating detections
 
-This respository contains a script to generate features for person
-re-identification, suitable to compare the visual appearance of detector
-bounding boxes using cosine similarity.
+Beside the main tracking application, this repository contains a script to
+generate features for person re-identification, suitable to compare the visual
+appearance of pedestrian bounding boxes using cosine similarity.
 The following example generates these features from standard MOT challenge
 detections. Again, we assume resources have been extracted to the repository
-root directory and MOT16 data resides in `./MOT16`:
+root directory and MOT16 data is in `./MOT16`:
 ```
 python generate_detections.npy
     --model=resources/networks/mars-small128.ckpt \
-    --mot_dir=./MOT16/train
+    --mot_dir=./MOT16/train \
     --output_dir=./resources/detections/MOT16_train
 ```
+For each sequence of the MOT16 dataset, the output is stored as separate binary
+file in NumPy native format. Each file contains an array of shape `Nx138`,
+where N is the number of detections in the corresponding MOT sequence.
+The first 10 columns of this array contain the raw MOT detection copied over
+from the input file. The remaining 128 columns store the appearance descriptor.
 
 ## Highlevel overview of source files
 
