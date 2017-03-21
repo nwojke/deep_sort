@@ -25,7 +25,7 @@ def create_link(
         network = _batch_norm_fn(incoming, scope=scope + "/bn")
         network = nonlinearity(network)
         if summarize_activations:
-            tf.histogram_summary(scope+"/activations", network)
+            tf.summary.histogram(scope+"/activations", network)
 
     pre_block_network = network
     post_block_network = network_builder(pre_block_network, scope)
@@ -48,7 +48,7 @@ def create_link(
 def create_inner_block(
         incoming, scope, nonlinearity=tf.nn.elu,
         weights_initializer=tf.truncated_normal_initializer(1e-3),
-        bias_initializer=tf.zeros_initializer, regularizer=None,
+        bias_initializer=tf.zeros_initializer(), regularizer=None,
         increase_dim=False, summarize_activations=True):
     n = incoming.get_shape().as_list()[-1]
     stride = 1
@@ -62,7 +62,7 @@ def create_inner_block(
         biases_initializer=bias_initializer, weights_regularizer=regularizer,
         scope=scope + "/1")
     if summarize_activations:
-        tf.histogram_summary(incoming.name + "/activations", incoming)
+        tf.summary.histogram(incoming.name + "/activations", incoming)
 
     incoming = slim.dropout(incoming, keep_prob=0.6)
 
@@ -76,7 +76,7 @@ def create_inner_block(
 
 def residual_block(incoming, scope, nonlinearity=tf.nn.elu,
                    weights_initializer=tf.truncated_normal_initializer(1e3),
-                   bias_initializer=tf.zeros_initializer, regularizer=None,
+                   bias_initializer=tf.zeros_initializer(), regularizer=None,
                    increase_dim=False, is_first=False,
                    summarize_activations=True):
 
@@ -94,10 +94,10 @@ def _create_network(incoming, num_classes, reuse=None, l2_normalize=True,
                    create_summaries=True, weight_decay=1e-8):
     nonlinearity = tf.nn.elu
     conv_weight_init = tf.truncated_normal_initializer(stddev=1e-3)
-    conv_bias_init = tf.zeros_initializer
+    conv_bias_init = tf.zeros_initializer()
     conv_regularizer = slim.l2_regularizer(weight_decay)
     fc_weight_init = tf.truncated_normal_initializer(stddev=1e-3)
-    fc_bias_init = tf.zeros_initializer
+    fc_bias_init = tf.zeros_initializer()
     fc_regularizer = slim.l2_regularizer(weight_decay)
 
     def batch_norm_fn(x):
@@ -110,8 +110,8 @@ def _create_network(incoming, num_classes, reuse=None, l2_normalize=True,
         weights_initializer=conv_weight_init, biases_initializer=conv_bias_init,
         weights_regularizer=conv_regularizer)
     if create_summaries:
-        tf.histogram_summary(network.name + "/activations", network)
-        tf.image_summary("conv1_1/weights", tf.transpose(
+        tf.summary.histogram(network.name + "/activations", network)
+        tf.summary.image("conv1_1/weights", tf.transpose(
             slim.get_variables("conv1_1/weights:0")[0], [3, 0, 1, 2]),
                          max_images=128)
     network = slim.conv2d(
@@ -120,7 +120,7 @@ def _create_network(incoming, num_classes, reuse=None, l2_normalize=True,
         weights_initializer=conv_weight_init, biases_initializer=conv_bias_init,
         weights_regularizer=conv_regularizer)
     if create_summaries:
-        tf.histogram_summary(network.name + "/activations", network)
+        tf.summary.histogram(network.name + "/activations", network)
 
     network = slim.max_pool2d(network, [3, 3], [2, 2], scope="pool1")
 
@@ -181,7 +181,7 @@ def _create_network(incoming, num_classes, reuse=None, l2_normalize=True,
                 "scale", (num_classes, ), tf.float32,
                 tf.constant_initializer(0., tf.float32), regularizer=None)
             if create_summaries:
-                tf.histogram_summary("scale", scale)
+                tf.summary.histogram("scale", scale)
             # scale = slim.model_variable(
             #     "scale", (), tf.float32,
             #     initializer=tf.constant_initializer(0., tf.float32),
