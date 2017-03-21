@@ -3,19 +3,19 @@
 ## Introduction
 
 This repository contains code for *Simple Online and Realtime Tracking with a Deep Association Metric* (Deep SORT).
+We extend the original [SORT](https://github.com/abewley/sort) algorithm to
+integrate appearance information based on a deep appearance descriptor.
 
 ## Dependencies
 
-Tracking code:
+The code is compatible with Python 2.7 and 3. The following dependencies are
+need to run the tracker:
 
 * NumPy
-* sklean (for linear assignment)
-* OpenCV (for visualization)
+* sklean
+* OpenCV
 
-Additionally, feature generation requires:
-
-* TensorFlow
-* tfslim
+Additionally, feature generation requires TensorFlow (>= 1.0).
 
 ## Installation
 

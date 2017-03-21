@@ -58,7 +58,7 @@ def view_roi(mat, roi):
         return mat[sy:ey, sx:ex, :]
 
 
-class ImageViewer:
+class ImageViewer(object):
     """An image viewer with drawing routines and video capture capabilities.
 
     Key Bindings:

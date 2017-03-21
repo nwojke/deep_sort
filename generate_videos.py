@@ -57,8 +57,6 @@ if __name__ == "__main__":
         sys.exit()
     for sequence_txt in os.listdir(args.result_dir):
         sequence = os.path.splitext(sequence_txt)[0]
-        if sequence != "KITTI-13":
-            continue
         sequence_dir = os.path.join(args.mot_dir, sequence)
         if not os.path.exists(sequence_dir):
             continue

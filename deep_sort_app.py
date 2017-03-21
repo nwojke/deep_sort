@@ -31,7 +31,8 @@ def gather_sequence_info(sequence_dir, detection_file):
         A dictionary of the following sequence information:
 
         * sequence_name: Name of the sequence
-        * image_filanemes: A dictionary that maps frame indices to image filenames.
+        * image_filenames: A dictionary that maps frame indices to image
+          filenames.
         * detections: A numpy array of detections in MOTChallenge format.
         * groundtruth: A numpy array of ground truth in MOTChallenge format.
         * image_size: Image size (height, width).
@@ -163,7 +164,7 @@ def run(sequence_dir, detection_file, output_file, min_confidence,
     results = []
 
     def frame_callback(vis, frame_idx):
-        print("Frame idx", frame_idx)
+        print("Processing frame %05d" % frame_idx)
 
         # Load image and generate detections.
         detections = create_detections(

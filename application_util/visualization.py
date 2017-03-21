@@ -53,9 +53,10 @@ def create_unique_color_uchar(tag, hue_step=0.41):
     return int(255*r), int(255*g), int(255*b)
 
 
-class NoVisualization:
+class NoVisualization(object):
     """
-    TODO(nwojke): Add documentation.
+    A dummy visualization object that loops through all frames in a given
+    sequence to update the tracker without performing any visualization.
     """
 
     def __init__(self, seq_info):
@@ -80,9 +81,9 @@ class NoVisualization:
             self.frame_idx += 1
 
 
-class Visualization:
+class Visualization(object):
     """
-    TODO(nwojke): Add documentation.
+    This class shows tracking output in an OpenCV image viewer.
     """
 
     def __init__(self, seq_info, update_ms):
