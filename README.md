@@ -26,6 +26,14 @@ git clone https://github.com/nwojke/deep_sort.git
 Then, download pre-generated detections and the CNN checkpoint file from
 [here](https://owncloud.uni-koblenz.de/owncloud/s/f9JB0Jr7f3zzqs8).
 
+*NOTE:* The candidate object locations of our pre-generated detections are
+taken from the following paper:
+```
+F. Yu, W. Li, Q. Li, Y. Liu, X. Shi, J. Yan. POI: Multiple Object Tracking with High Performance Detection and Appearance Feature. In BMTT, SenseTime Group Limited, 2016.
+```
+We have replaced the appearance descriptor with a custom deep convolutional
+neural network (see below).
+
 ## Running the tracker
 
 The following example starts the tracker on one of the
