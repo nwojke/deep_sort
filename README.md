@@ -29,7 +29,9 @@ Then, download pre-generated detections and the CNN checkpoint file from
 *NOTE:* The candidate object locations of our pre-generated detections are
 taken from the following paper:
 ```
-F. Yu, W. Li, Q. Li, Y. Liu, X. Shi, J. Yan. POI: Multiple Object Tracking with High Performance Detection and Appearance Feature. In BMTT, SenseTime Group Limited, 2016.
+F. Yu, W. Li, Q. Li, Y. Liu, X. Shi, J. Yan. POI: Multiple Object Tracking with
+High Performance Detection and Appearance Feature. In BMTT, SenseTime Group
+Limited, 2016.
 ```
 We have replaced the appearance descriptor with a custom deep convolutional
 neural network (see below).
