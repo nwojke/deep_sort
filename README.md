@@ -9,7 +9,7 @@ integrate appearance information based on a deep appearance descriptor.
 ## Dependencies
 
 The code is compatible with Python 2.7 and 3. The following dependencies are
-need to run the tracker:
+needed to run the tracker:
 
 * NumPy
 * sklean
