@@ -54,6 +54,48 @@ def _cosine_distance(a, b, data_is_normalized=False):
     return 1. - np.dot(a, b.T)
 
 
+def _nn_euclidean_distance(x, y):
+    """ Helper function for nearest neighbor distance metric (Euclidean).
+
+    Parameters
+    ----------
+    x : ndarray
+        A matrix of N row-vectors (sample points).
+    y : ndarray
+        A matrix of M row-vectors (query points).
+
+    Returns
+    -------
+    ndarray
+        A vector of length M that contains for each entry in `y` the
+        smallest Euclidean distance to a sample in `x`.
+
+    """
+    distances = _pdist(x, y)
+    return np.maximum(0.0, distances.min(axis=0))
+
+
+def _nn_cosine_distance(x, y):
+    """ Helper function for nearest neighbor distance metric (cosine).
+
+    Parameters
+    ----------
+    x : ndarray
+        A matrix of N row-vectors (sample points).
+    y : ndarray
+        A matrix of M row-vectors (query points).
+
+    Returns
+    -------
+    ndarray
+        A vector of length M that contains for each entry in `y` the
+        smallest cosine distance to a sample in `x`.
+
+    """
+    distances = _cosine_distance(x, y)
+    return distances.min(axis=0)
+
+
 class NearestNeighborDistanceMetric(object):
     """
     A nearest neighbor distance metric that, for each target, returns
@@ -80,18 +122,11 @@ class NearestNeighborDistanceMetric(object):
 
     def __init__(self, metric, matching_threshold, budget=None):
 
-        def nn_euclidean_distance(x, y):
-            distances = _pdist(x, y)
-            return np.maximum(0.0, distances.min(axis=0))
-
-        def nn_cosine_distance(x, y):
-            distances = _cosine_distance(x, y)
-            return distances.min(axis=0)
 
         if metric == "euclidean":
-            self._metric = nn_euclidean_distance
+            self._metric = _nn_euclidean_distance
         elif metric == "cosine":
-            self._metric = nn_cosine_distance
+            self._metric = _nn_cosine_distance
         else:
             raise ValueError(
                 "Invalid metric; must be either 'euclidean' or 'cosine'")
