@@ -101,3 +101,22 @@ The `deep_sort_app.py` expects detections in a custom format, stored in .npy
 files. These can be computed from MOTChallenge detections using
 `generate_detections.py`. We also provide [pre-generated detections](https://owncloud.uni-koblenz.de/owncloud/s/f9JB0Jr7f3zzqs8).
 
+## Citing DeepSORT
+
+If you find this repo useful in your research, please consider citing the following papers:
+
+    @article{Wojke2017simple,
+      title={Simple Online and Realtime Tracking with a Deep Association Metric},
+      author={Wojke, Nicolai and Bewley, Alex and Paulus, Dietrich},
+      journal={arXiv preprint arXiv:1703.07402},
+      year={2017}
+    }
+
+    @inproceedings{Bewley2016_sort,
+      author={Bewley, Alex and Ge, Zongyuan and Ott, Lionel and Ramos, Fabio and Upcroft, Ben},
+      booktitle={2016 IEEE International Conference on Image Processing (ICIP)},
+      title={Simple online and realtime tracking},
+      year={2016},
+      pages={3464-3468},
+      doi={10.1109/ICIP.2016.7533003}
+    }
