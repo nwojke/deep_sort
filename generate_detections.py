@@ -122,6 +122,10 @@ def _create_network(incoming, num_classes, reuse=None, l2_normalize=True,
     if create_summaries:
         tf.summary.histogram(network.name + "/activations", network)
 
+    # NOTE(nwojke): This is missing a padding="SAME" to match the CNN
+    # architecture in Table 1 of the paper. Information on how this affects
+    # performance on MOT 16 training sequences can be found in
+    # issue 10 https://github.com/nwojke/deep_sort/issues/10
     network = slim.max_pool2d(network, [3, 3], [2, 2], scope="pool1")
 
     network = residual_block(
