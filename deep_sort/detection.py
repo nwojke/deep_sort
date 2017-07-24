@@ -1,4 +1,5 @@
 # vim: expandtab:ts=4:sw=4
+import numpy as np
 
 
 class Detection(object):
@@ -7,11 +8,11 @@ class Detection(object):
 
     Parameters
     ----------
-    tlwh : ndarray
+    tlwh : array_like
         Bounding box in format `(x, y, w, h)`.
-    confidence : ndarray
+    confidence : float
         Detector confidence score.
-    feature : ndarray
+    feature : array_like
         A feature vector that describes the object contained in this image.
 
     Attributes
@@ -26,9 +27,9 @@ class Detection(object):
     """
 
     def __init__(self, tlwh, confidence, feature):
-        self.tlwh = tlwh
-        self.confidence = confidence
-        self.feature = feature
+        self.tlwh = np.asarray(tlwh, dtype=np.float)
+        self.confidence = float(confidence)
+        self.feature = np.asarray(feature, dtype=np.float32)
 
     def to_tlbr(self):
         """Convert bounding box to format `(min x, min y, max x, max y)`, i.e.,
