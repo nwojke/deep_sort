@@ -51,8 +51,6 @@ class Track:
         A unique track identifier.
     hits : int
         Total number of measurement updates.
-    hit_streak : int
-        Total number of consective measurement updates since last miss.
     age : int
         Total number of frames since first occurance.
     time_since_update : int
@@ -71,7 +69,6 @@ class Track:
         self.covariance = covariance
         self.track_id = track_id
         self.hits = 1
-        self.hit_streak = 1
         self.age = 1
         self.time_since_update = 0
 
@@ -142,7 +139,6 @@ class Track:
             self.mean, self.covariance, detection.to_xyah())
         self.features.append(detection.feature)
 
-        self.hit_streak += 1
         self.hits += 1
         self.time_since_update = 0
         if self.state == TrackState.Tentative and self.hits >= self._n_init:
@@ -155,7 +151,6 @@ class Track:
             self.state = TrackState.Deleted
         elif self.time_since_update > self._max_age:
             self.state = TrackState.Deleted
-        self.hit_streak = 0
 
     def is_tentative(self):
         """Returns True if this track is tentative (unconfirmed).
