@@ -108,9 +108,9 @@ If you find this repo useful in your research, please consider citing the follow
     @inproceedings{Wojke2017simple,
       title={Simple Online and Realtime Tracking with a Deep Association Metric},
       author={Wojke, Nicolai and Bewley, Alex and Paulus, Dietrich},
-      booktitle={IEEE International Conference on Image Processing (ICIP)},
-      pages={3645--3649},
-      year={2017}
+      booktitle={2017 IEEE International Conference on Image Processing (ICIP)},
+      year={2017},
+      pages={3645--3649}
     }
 
     @inproceedings{Bewley2016_sort,
