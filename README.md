@@ -105,10 +105,11 @@ files. These can be computed from MOTChallenge detections using
 
 If you find this repo useful in your research, please consider citing the following papers:
 
-    @article{Wojke2017simple,
+    @inproceedings{Wojke2017simple,
       title={Simple Online and Realtime Tracking with a Deep Association Metric},
       author={Wojke, Nicolai and Bewley, Alex and Paulus, Dietrich},
-      journal={arXiv preprint arXiv:1703.07402},
+      booktitle={IEEE International Conference on Image Processing (ICIP)},
+      pages={3645--3649},
       year={2017}
     }
 
