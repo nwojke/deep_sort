@@ -120,7 +120,8 @@ If you find this repo useful in your research, please consider citing the follow
       booktitle={2017 IEEE International Conference on Image Processing (ICIP)},
       title={Simple Online and Realtime Tracking with a Deep Association Metric},
       year={2017},
-      pages={3645--3649}
+      pages={3645--3649},
+      doi={10.1109/ICIP.2017.8296962}
     }
 
     @inproceedings{Bewley2016_sort,
