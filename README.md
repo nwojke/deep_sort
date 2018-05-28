@@ -13,7 +13,7 @@ The code is compatible with Python 2.7 and 3. The following dependencies are
 needed to run the tracker:
 
 * NumPy
-* sklean
+* sklearn
 * OpenCV
 
 Additionally, feature generation requires TensorFlow (>= 1.0).
