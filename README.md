@@ -125,7 +125,7 @@ If you find this repo useful in your research, please consider citing the follow
       booktitle={2017 IEEE International Conference on Image Processing (ICIP)},
       year={2017},
       pages={3645--3649},
-      organization={IEEE}
+      organization={IEEE},
       doi={10.1109/ICIP.2017.8296962}
     }
 
@@ -135,6 +135,6 @@ If you find this repo useful in your research, please consider citing the follow
       booktitle={2018 IEEE Winter Conference on Applications of Computer Vision (WACV)},
       year={2018},
       pages={748--756},
-      organization={IEEE}
+      organization={IEEE},
       doi={10.1109/WACV.2018.00087}
     }
