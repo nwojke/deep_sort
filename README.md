@@ -25,7 +25,7 @@ First, clone the repository:
 git clone https://github.com/nwojke/deep_sort.git
 ```
 Then, download pre-generated detections and the CNN checkpoint file from
-[here](https://owncloud.uni-koblenz.de/owncloud/s/f9JB0Jr7f3zzqs8).
+[here](https://drive.google.com/drive/folders/18fKzfqnqhqW3s9zwsCbnVJ5XF2JFeqMp).
 
 *NOTE:* The candidate object locations of our pre-generated detections are
 taken from the following paper:
