@@ -25,7 +25,7 @@ First, clone the repository:
 git clone https://github.com/nwojke/deep_sort.git
 ```
 Then, download pre-generated detections and the CNN checkpoint file from
-[here](https://drive.google.com/drive/folders/18fKzfqnqhqW3s9zwsCbnVJ5XF2JFeqMp).
+[here](https://drive.google.com/open?id=1m2ebLHB2JThZC8vWGDYEKGsevLssSkjo).
 
 *NOTE:* The candidate object locations of our pre-generated detections are
 taken from the following paper:
@@ -113,7 +113,8 @@ In package `deep_sort` is the main tracking code:
 
 The `deep_sort_app.py` expects detections in a custom format, stored in .npy
 files. These can be computed from MOTChallenge detections using
-`generate_detections.py`. We also provide [pre-generated detections](https://owncloud.uni-koblenz.de/owncloud/s/f9JB0Jr7f3zzqs8).
+`generate_detections.py`. We also provide
+[pre-generated detections](https://drive.google.com/open?id=1VVqtL0klSUvLnmBKS89il1EKC3IxUBVK).
 
 ## Citing DeepSORT
 
