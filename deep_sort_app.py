@@ -212,6 +212,12 @@ def run(sequence_dir, detection_file, output_file, min_confidence,
             row[0], row[1], row[2], row[3], row[4], row[5]),file=f)
 
 
+def bool_string(input_string):
+    if input_string not in {'True','False'}:
+        raise ValueError('Please Enter a valid Ture/False choice')
+    else:
+        return (input_string == 'True')
+
 def parse_args():
     """ Parse command line arguments.
     """
@@ -245,7 +251,7 @@ def parse_args():
         "gallery. If None, no budget is enforced.", type=int, default=None)
     parser.add_argument(
         "--display", help="Show intermediate tracking results",
-        default=True, type=bool)
+        default=True, type=bool_string)
     return parser.parse_args()
 
 
