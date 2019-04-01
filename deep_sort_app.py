@@ -213,10 +213,10 @@ def run(sequence_dir, detection_file, output_file, min_confidence,
 
 
 def bool_string(input_string):
-    if input_string not in {'True','False'}:
-        raise ValueError('Please Enter a valid Ture/False choice')
+    if input_string not in {"True","False"}:
+        raise ValueError("Please Enter a valid Ture/False choice")
     else:
-        return (input_string == 'True')
+        return (input_string == "True")
 
 def parse_args():
     """ Parse command line arguments.
