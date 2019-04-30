@@ -3,6 +3,7 @@ from __future__ import division, print_function, absolute_import
 
 import argparse
 import os
+import time
 
 import cv2
 import numpy as np
@@ -162,9 +163,16 @@ def run(sequence_dir, detection_file, output_file, min_confidence,
         "cosine", max_cosine_distance, nn_budget)
     tracker = Tracker(metric)
     results = []
+    last_time = time.time()
 
     def frame_callback(vis, frame_idx):
-        print("Processing frame %05d" % frame_idx)
+        curr_time = time.time()
+        if frame_callback.last_time is not None:
+            fps = 1 / (curr_time - frame_callback.last_time)
+        else:
+            fps = 0
+        frame_callback.last_time = curr_time
+        print("Processing frame %05d - %.1ffps" % (frame_idx, fps))
 
         # Load image and generate detections.
         detections = create_detections(
@@ -197,6 +205,9 @@ def run(sequence_dir, detection_file, output_file, min_confidence,
             bbox = track.to_tlwh()
             results.append([
                 frame_idx, track.track_id, bbox[0], bbox[1], bbox[2], bbox[3]])
+
+    # Store FPS object
+    frame_callback.last_time = None
 
     # Run tracker.
     if display:
@@ -257,7 +268,9 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
+    start_time = time.time()
     run(
         args.sequence_dir, args.detection_file, args.output_file,
         args.min_confidence, args.nms_max_overlap, args.min_detection_height,
         args.max_cosine_distance, args.nn_budget, args.display)
+    print("Processing time: %.2fs" % (time.time() - start_time))
