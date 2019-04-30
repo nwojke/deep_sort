@@ -188,6 +188,12 @@ def parse_args():
     parser.add_argument(
         "--graphdef_out",
         default="resources/networks/mars-small128.pb")
+    parser.add_argument(
+        "--no_preprocess",
+        default=False,
+        action='store_true',
+        help="Do not include preprocessing in model (to avoid compatibility "
+             "issues)")
     return parser.parse_args()
 
 
@@ -197,9 +203,12 @@ def main():
     with tf.Session(graph=tf.Graph()) as session:
         input_var = tf.placeholder(
             tf.uint8, (None, 128, 64, 3), name="images")
-        image_var = tf.map_fn(
-            lambda x: _preprocess(x), tf.cast(input_var, tf.float32),
-            back_prop=False)
+        if args.no_preprocess:
+            image_var = tf.cast(input_var, tf.float32)
+        else:
+            image_var = tf.map_fn(
+                lambda x: _preprocess(x), tf.cast(input_var, tf.float32),
+                back_prop=False)
 
         factory_fn = _network_factory()
         features, _ = factory_fn(image_var, reuse=None)
