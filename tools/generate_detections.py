@@ -2,9 +2,16 @@
 import os
 import errno
 import argparse
+import time
 import numpy as np
 import cv2
 import tensorflow as tf
+
+try:
+    from openvino.inference_engine import IENetwork, IEPlugin
+    USE_DYN_BATCH = False
+except ImportError:
+    pass
 
 
 def _run_in_batches(f, data_dict, out, batch_size):
@@ -71,7 +78,20 @@ def extract_image_patch(image, bbox, patch_shape):
 class ImageEncoder(object):
 
     def __init__(self, checkpoint_filename, input_name="images",
-                 output_name="features"):
+                 output_name="features", openvino_device=None):
+
+        self.openvino_device=openvino_device
+        if openvino_device is not None:
+            # setup device
+            model_base = os.path.splitext(checkpoint_filename)[0]
+            self._net = IENetwork(
+                model=model_base + '.xml',
+                weights=model_base + '.bin')
+            self._plugin = IEPlugin(device=openvino_device)
+            self._input_blob = next(iter(self._net.inputs))
+            self._out_blob = next(iter(self._net.outputs))
+            self._reload_openvino_net(1)
+
         self.session = tf.Session()
         with tf.gfile.GFile(checkpoint_filename, "rb") as file_handle:
             graph_def = tf.GraphDef()
@@ -87,20 +107,52 @@ class ImageEncoder(object):
         self.feature_dim = self.output_var.get_shape().as_list()[-1]
         self.image_shape = self.input_var.get_shape().as_list()[1:]
 
+    def _reload_openvino_net(self, batch_size):
+        if self.openvino_device == "MYRIAD" or not USE_DYN_BATCH:
+            self._net.batch_size = 1
+            self._exec_net = self._plugin.load(network=self._net)
+        else:
+            self._net.batch_size = batch_size
+            self._exec_net = self._plugin.load(
+                network=self._net, config={'DYN_BATCH_ENABLED': 'YES'})
+
     def __call__(self, data_x, batch_size=32):
+        if self.openvino_device != "MYRIAD" \
+                and batch_size != self._net.batch_size:
+            self._reload_openvino_net(batch_size)
+
         out = np.zeros((len(data_x), self.feature_dim), np.float32)
-        _run_in_batches(
-            lambda x: self.session.run(self.output_var, feed_dict=x),
-            {self.input_var: data_x}, out, batch_size)
+        if self.openvino_device:
+            def reorder(tensor):
+                return np.transpose(tensor, (0, 3, 1, 2))
+
+            if self.openvino_device == "MYRIAD" or not USE_DYN_BATCH:
+                # doesn't support dynamic batch size
+                for patch in range(len(data_x)):
+                    out[patch] = next(iter(self._exec_net.infer(
+                        inputs={self._input_blob: reorder(
+                            data_x[patch:patch + 1])}).values()))
+            else:
+                _run_in_batches(
+                    lambda x: self._exec_net.infer(inputs=x),
+                    {self._input_blob: reorder(data_x)}, out, batch_size)
+        else:
+            _run_in_batches(
+                lambda x: self.session.run(self.output_var, feed_dict=x),
+                {self.input_var: data_x}, out, batch_size)
         return out
 
 
 def create_box_encoder(model_filename, input_name="images",
-                       output_name="features", batch_size=32):
-    image_encoder = ImageEncoder(model_filename, input_name, output_name)
+                       output_name="features", batch_size=32,
+                       openvino_device=None):
+    image_encoder = ImageEncoder(
+        model_filename, input_name, output_name,
+        openvino_device=openvino_device)
     image_shape = image_encoder.image_shape
 
     def encoder(image, boxes):
+        encoder.batch_size = batch_size
         image_patches = []
         for box in boxes:
             patch = extract_image_patch(image, box, image_shape[:2])
@@ -132,7 +184,6 @@ def generate_detections(encoder, mot_dir, output_dir, detection_dir=None):
         Path to custom detections. The directory structure should be the default
         MOTChallenge structure: `[sequence]/det/det.txt`. If None, uses the
         standard MOTChallenge detections.
-
     """
     if detection_dir is None:
         detection_dir = mot_dir
@@ -162,8 +213,12 @@ def generate_detections(encoder, mot_dir, output_dir, detection_dir=None):
         frame_indices = detections_in[:, 0].astype(np.int)
         min_frame_idx = frame_indices.astype(np.int).min()
         max_frame_idx = frame_indices.astype(np.int).max()
+        last_frame_time = 0
         for frame_idx in range(min_frame_idx, max_frame_idx + 1):
-            print("Frame %05d/%05d" % (frame_idx, max_frame_idx))
+            curr_frame_time = time.time()
+            print("Frame %05d/%05d - %.2ffps"
+                % (frame_idx, max_frame_idx, 1 / (curr_frame_time - last_frame_time)))
+            last_frame_time = curr_frame_time
             mask = frame_indices == frame_idx
             rows = detections_in[mask]
 
@@ -199,14 +254,26 @@ def parse_args():
     parser.add_argument(
         "--output_dir", help="Output directory. Will be created if it does not"
         " exist.", default="detections")
+    parser.add_argument(
+        "--use_openvino", help="Use Openvino. Can be any available device as "
+        "long as it is compatible. Model & weights are expected to be inside "
+        "the folder specified with '-model' and end with '.xml' and '.bin' "
+        "respectively. Supply the device identifier (CPU, GPU, MYRIAD etc.)",
+        default="CPU")
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    encoder = create_box_encoder(args.model, batch_size=32)
-    generate_detections(encoder, args.mot_dir, args.output_dir,
-                        args.detection_dir)
+    if args.use_openvino:
+        assert IENetwork, "Openvino could not be imported. " \
+            "Make sure it is installed correctly."
+        args.use_openvino = args.use_openvino.upper()
+
+    encoder = create_box_encoder(
+        args.model, batch_size=32, openvino_device=args.use_openvino)
+    generate_detections(
+        encoder, args.mot_dir, args.output_dir, args.detection_dir)
 
 
 if __name__ == "__main__":
