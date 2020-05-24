@@ -1,0 +1,6 @@
+python deep_sort_app.py \
+    --sequence_dir=/home/hjw/e/dataset_tiptical/MOT16/test/MOT16-06 \
+    --detection_file=/home/hjw/e/dataset_tiptical/MOT16/test/MOT16-06/MOT16-06.npy \
+    --min_confidence=0.3 \
+    --nn_budget=100 \
+    --display=True
