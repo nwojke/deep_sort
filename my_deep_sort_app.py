@@ -257,7 +257,19 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    print('Parameters:')
+    print('Parameters')
+    print('==========')
+    print('sequence_dir: ', args.sequence_dir)
+    print('detection_file: ', args.detection_file)
+    print('output_file: ', args.output_file)
+    print('min_confidence: ', args.min_confidence)
+    print('min_detection_height: ', args.min_detection_height)
+    print('nms_max_overlap: ', args.nms_max_overlap)
+    print('max_cosine_distance: ', args.max_cosine_distance)
+    print('nn_budget: ', args.nn_budget)
+    print('display: ', args.display)
+    print('')
+
     run(
         args.sequence_dir, args.detection_file, args.output_file,
         args.min_confidence, args.nms_max_overlap, args.min_detection_height,
