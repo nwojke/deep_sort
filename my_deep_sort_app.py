@@ -13,6 +13,23 @@ from deep_sort import nn_matching
 from deep_sort.detection import Detection
 from deep_sort.tracker import Tracker
 
+def get_feature(sequence_dir, frame_idx, bbox, feature_dim):
+    '''提取检测目标特征
+    通过直方图描述目标特征
+    @sequence_dir - 测试图像序列存放目录
+    @frame_idx    - 图像序号
+    @bbox         - 检测目标bbox
+    @feature_dim  - 特征数
+    @return feature - 特征向量 
+    '''
+    image_dir = os.path.join(sequence_dir, "img1")
+    img_file= os.path.join(image_dir, ('000000'+str(frame_idx))[-6:]+'.jpg')
+    img = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
+    t, l, w, h = bbox
+    roi = img[t:t+h;l:l+w] # tlwh
+    hists, bins = np.histogram(roi, bins=feature_dim)
+    return hists
+
 
 def gather_sequence_info(sequence_dir, detection_file):
     """Gather sequence information, such as image filenames, detections,
