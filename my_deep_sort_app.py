@@ -13,7 +13,10 @@ from deep_sort import nn_matching
 from deep_sort.detection import Detection
 from deep_sort.tracker import Tracker
 
-def get_feature(sequence_dir, frame_idx, bbox, feature_dim):
+def get_feature1_dim():
+    return 20
+
+def get_feature1(sequence_dir, frame_idx, bbox):
     '''提取检测目标特征
     通过直方图描述目标特征
     @sequence_dir - 测试图像序列存放目录
@@ -25,13 +28,14 @@ def get_feature(sequence_dir, frame_idx, bbox, feature_dim):
     image_dir = os.path.join(sequence_dir, "img1")
     img_file= os.path.join(image_dir, ('000000'+str(frame_idx))[-6:]+'.jpg')
     img = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
-    t, l, w, h = bbox
-    roi = img[t:t+h;l:l+w] # tlwh
-    hists, bins = np.histogram(roi, bins=feature_dim)
+    t, l, w, h = [int(x) for x in bbox]
+    print('[DEBUG] img.shape: %s,bbox: %s' %(str(img.shape), bbox))
+    roi = img[t:t+h,l:l+w] # tlwh
+    hists, bins = np.histogram(roi, bins=get_feature1_dim())
     return hists
 
 
-def gather_sequence_info(sequence_dir, detection_file):
+def gather_sequence_info(sequence_dir, detection_file, feature_type=0):
     """Gather sequence information, such as image filenames, detections,
     groundtruth (if available).
 
@@ -95,7 +99,10 @@ def gather_sequence_info(sequence_dir, detection_file):
     else:
         update_ms = None
 
-    feature_dim = detections.shape[1] - 10 if detections is not None else 0
+    if feature_type==0:
+        feature_dim = detections.shape[1] - 10 if detections is not None else 0 
+    elif feature_type==1:
+        feature_dim = get_feature1_dim()
     seq_info = {
         "sequence_name": os.path.basename(sequence_dir),
         "image_filenames": image_filenames,
@@ -110,7 +117,7 @@ def gather_sequence_info(sequence_dir, detection_file):
     return seq_info
 
 
-def create_detections(detection_mat, frame_idx, min_height=0):
+def create_detections(detection_mat, frame_idx, min_height=0, feature_type=0, sequence_dir='model_data'):
     """Create detections for given frame index from the raw detection matrix.
 
     Parameters
@@ -137,6 +144,8 @@ def create_detections(detection_mat, frame_idx, min_height=0):
     detection_list = []
     for row in detection_mat[mask]:
         bbox, confidence, feature = row[2:6], row[6], row[10:]
+        if feature_type==1:
+            feature = get_feature1(sequence_dir, frame_idx, bbox)
         if bbox[3] < min_height:
             continue
         detection_list.append(Detection(bbox, confidence, feature))
@@ -145,7 +154,7 @@ def create_detections(detection_mat, frame_idx, min_height=0):
 
 def run(sequence_dir, detection_file, output_file, min_confidence,
         nms_max_overlap, min_detection_height, max_cosine_distance,
-        nn_budget, display):
+        nn_budget, display, feature_type):
     """Run multi-target tracker on a particular sequence.
 
     Parameters
@@ -172,9 +181,11 @@ def run(sequence_dir, detection_file, output_file, min_confidence,
         is enforced.
     display : bool
         If True, show visualization of intermediate tracking results.
+    feature_type: int
+        Indicate how to get feature from bbox area.
 
     """
-    seq_info = gather_sequence_info(sequence_dir, detection_file)
+    seq_info = gather_sequence_info(sequence_dir, detection_file, feature_type)
     metric = nn_matching.NearestNeighborDistanceMetric(
         "cosine", max_cosine_distance, nn_budget)
     tracker = Tracker(metric)
@@ -185,7 +196,7 @@ def run(sequence_dir, detection_file, output_file, min_confidence,
 
         # Load image and generate detections.
         detections = create_detections(
-            seq_info["detections"], frame_idx, min_detection_height)
+            seq_info["detections"], frame_idx, min_detection_height, feature_type, sequence_dir)
         detections = [d for d in detections if d.confidence >= min_confidence]
 
         # Run non-maxima suppression.
@@ -241,10 +252,9 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Deep SORT")
     parser.add_argument(
         "--sequence_dir", help="Path to MOTChallenge sequence directory",
-        default=None, required=True)
+        default='model_data')
     parser.add_argument(
-        "--detection_file", help="Path to custom detections.", default=None,
-        required=True)
+        "--detection_file", help="Path to custom detections.", default='model_data/MOT16-06.npy')
     parser.add_argument(
         "--output_file", help="Path to the tracking output file. This file will"
         " contain the tracking results on completion.",
@@ -269,6 +279,10 @@ def parse_args():
     parser.add_argument(
         "--display", help="Show intermediate tracking results",
         default=True, type=bool_string)
+    parser.add_argument(
+        "--feature_type", help="feature type",
+        default=0, type=int)
+    
     return parser.parse_args()
 
 
@@ -285,9 +299,10 @@ if __name__ == "__main__":
     print('max_cosine_distance: ', args.max_cosine_distance)
     print('nn_budget: ', args.nn_budget)
     print('display: ', args.display)
+    print('feature_type: ', args.feature_type)
     print('')
 
     run(
         args.sequence_dir, args.detection_file, args.output_file,
         args.min_confidence, args.nms_max_overlap, args.min_detection_height,
-        args.max_cosine_distance, args.nn_budget, args.display)
+        args.max_cosine_distance, args.nn_budget, args.display, args.feature_type)
