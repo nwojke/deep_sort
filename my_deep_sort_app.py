@@ -29,7 +29,7 @@ def get_feature1(sequence_dir, frame_idx, bbox):
     img_file= os.path.join(image_dir, ('000000'+str(frame_idx))[-6:]+'.jpg')
     img = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
     t, l, w, h = [int(x) for x in bbox]
-    print('[DEBUG] img.shape: %s,bbox: %s' %(str(img.shape), bbox))
+    #print('[DEBUG] img.shape: %s,bbox: %s' %(str(img.shape), bbox))
     roi = img[t:t+h,l:l+w] # tlwh
     hists, bins = np.histogram(roi, bins=get_feature1_dim())
     return hists
