@@ -1,7 +1,13 @@
 # vim: expandtab:ts=4:sw=4
 from __future__ import absolute_import
 import numpy as np
-from sklearn.utils.linear_assignment_ import linear_assignment
+
+import sklearn
+#FutureWarning: The linear_assignment function is deprecated in 0.21 and will be removed from 0.23. Use scipy.optimize.linear_sum_assignment instead.
+if sklearn.__version__>'0.22':
+    from scipy.optimize import linear_sum_assignment as linear_assignment # tf1.15, sklearn=>0.23
+else:
+    from sklearn.utils.linear_assignment_ import linear_assignment       # tf1.14, sklearn=>0.22
 from . import kalman_filter
 
 
@@ -56,6 +62,10 @@ def min_cost_matching(
         tracks, detections, track_indices, detection_indices)
     cost_matrix[cost_matrix > max_distance] = max_distance + 1e-5
     indices = linear_assignment(cost_matrix)
+
+    # Fix for tf1.15 envirement when use scipy.optimize.linear_sum_assignment instead from sklearn.utils.linear_assignment_
+    if type(indices)==tuple:
+        indices = np.array([[x,y] for x,y in zip(*indices)])
 
     matches, unmatched_tracks, unmatched_detections = [], [], []
     for col, detection_idx in enumerate(detection_indices):
