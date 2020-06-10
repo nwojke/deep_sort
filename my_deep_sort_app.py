@@ -148,7 +148,7 @@ def create_detections(detection_mat, frame_idx, min_height=0, feature_type=0, se
             feature = get_feature1(sequence_dir, frame_idx, bbox)
         if bbox[3] < min_height:
             continue
-        detection_list.append(Detection(bbox, confidence, feature, exts=[0.5]))
+        detection_list.append(Detection(bbox, confidence, feature, exts1=[0.5], exts2=[0.6]))
     return detection_list
 
 
@@ -188,7 +188,7 @@ def run(sequence_dir, detection_file, output_file, min_confidence,
     seq_info = gather_sequence_info(sequence_dir, detection_file, feature_type)
     metric = nn_matching.NearestNeighborDistanceMetric(
         "cosine", max_cosine_distance, nn_budget)
-    tracker = Tracker(metric, n_extend=1)
+    tracker = Tracker(metric, n_extend=1, filter_type=2)
     results = []
 
     def frame_callback(vis, frame_idx):

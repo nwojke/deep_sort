@@ -37,13 +37,14 @@ class Tracker:
 
     """
 
-    def __init__(self, metric, max_iou_distance=0.7, max_age=30, n_init=3, n_extend=0):
+    def __init__(self, metric, max_iou_distance=0.7, max_age=30, n_init=3, n_extend=0, filter_type=0):
         self.metric = metric
         self.max_iou_distance = max_iou_distance
         self.max_age = max_age
         self.n_init = n_init
-
+        
         self.kf = kalman_filter.KalmanFilter(n_extend=n_extend)
+        self.filter_type = filter_type # exts2 滤波器类型
         self.tracks = []
         self._next_id = 1
 
@@ -134,5 +135,5 @@ class Tracker:
         mean, covariance = self.kf.initiate(detection.to_xyah())
         self.tracks.append(Track(
             mean, covariance, self._next_id, self.n_init, self.max_age,
-            detection.feature, binding_obj=detection.binding_obj))
+            detection.feature, binding_obj=detection.binding_obj, filter_type=self.filter_type))
         self._next_id += 1

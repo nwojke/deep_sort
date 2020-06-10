@@ -1,5 +1,111 @@
 # vim: expandtab:ts=4:sw=4
 
+import queue
+import numpy as np
+
+# 滤波方案0
+class Filter0(object):    
+    '''均值滤波，设定队列长度，取队列均值作为输出
+    '''
+    def __init__(self, N=3):
+        '''
+        @param N - 队列长度
+        '''
+        self.q = queue.Queue()
+        self.N = N
+
+    def filter(self, data):
+        '''
+        @param data - np.array: channels x data_len
+        '''
+        for i in range(data.shape[1]):
+            self.q.put(data[:, i])
+            data[:, i] = np.array(self.q.queue).mean(axis=0)
+            if self.q.qsize()>=self.N:
+                self.q.get()
+
+# 滤波方案1
+class Filter1(object):
+    '''依据方差剔除奇点数据
+    '''
+    def __init__(self, N=4, std_th=0.05):
+        '''
+        @param N      - 队列长度
+        @param std_th - 方差域值
+        '''
+        self.q_size = N
+        self.std_th = std_th
+        self.q = queue.Queue()
+
+    def filter(self, data):
+        '''
+        @param data - np.array: channels x data_len
+        '''
+        for i in range(data.shape[1]):
+            if self.q.qsize()==self.q_size:
+                q_data = np.array(self.q.queue)
+                mean_vals = np.array(q_data).mean(axis=0)
+                err_vals = [data[:, i]-mean_vals]/mean_vals
+                filter_ids = err_vals>self.std_th
+                data[filter_ids[0], i] = mean_vals[filter_ids[0]]*0.8 + data[filter_ids[0], i]*0.2
+            self.q.put(data[:, i])
+            if self.q.qsize()>self.q_size:
+                self.q.get()
+
+# 滤波方案2
+class Filter2(object):
+    def __init__(self, Q=1e-6, R=4e-4):
+        '''
+        @param Q - Q参数, channel x 1
+        @param R - R参数, channel x 1
+        '''
+        self.Q = Q
+        self.R = R
+        self.K_prev = np.zeros_like(Q)
+        self.X_prev = np.zeros_like(Q)
+        self.P_prev = np.zeros_like(Q)
+        self.b_first = True
+
+    def filter(self, data):
+        '''
+        @param data - [InPlace], channel x data_len
+        '''
+        if self.b_first:
+            self.b_first = False
+            self.X_prev = data[:,0]
+            self.P_prev = np.zeros_like(self.X_prev)
+        else:
+            self.K_prev = self.P_prev / (self.P_prev + self.R)
+            data[:, 0] = self.X_prev + self.K_prev * (data[:, 0] - self.X_prev)
+            self.P_prev = self.P_prev - self.K_prev * self.P_prev + self.Q
+        for i in range(data.shape[1]):
+            K = self.P_prev / (self.P_prev + self.R)
+            data[:, i] = data[:, i-1] + K * (data[:, i] - data[:, i-1])
+            P = self.P_prev - K * self.P_prev + self.Q
+            self.P_prev = P
+            self.K_prev = K
+            self.X_prev = data[:, i]
+
+# 滤波方案总成
+class Filter(object):
+    def __init__(self, filter_type=0):
+        '''
+        @param fitler_type - 滤波器方案,对应 FilterX
+        @param        
+        '''
+        if filter_type==0:
+            self.objFilter = Filter0()
+        elif filter_type==1:
+            self.objFilter = Filter1()
+        elif filter_type==2:
+            self.objFilter = Filter2()
+
+    def filter(self, det):
+        if not det.exts2 is None:
+            data = np.expand_dims(det.exts2, axis=1)
+            self.objFilter.filter(data)
+            det.exts2 = data.reshape(-1)
+
 
 class TrackState:
     """
@@ -64,7 +170,7 @@ class Track:
     """
 
     def __init__(self, mean, covariance, track_id, n_init, max_age,
-                 feature=None, binding_obj=None):
+                 feature=None, binding_obj=None, filter_type=0):
         self.mean = mean
         self.covariance = covariance
         self.track_id = track_id
@@ -80,6 +186,8 @@ class Track:
         self._n_init = n_init
         self._max_age = max_age
         self.binding_obj = binding_obj
+        self.objFilter = Filter(filter_type=filter_type)
+        self.exts2 = None
 
     def to_tlwh(self):
         """Get current position in bounding box format `(top left x, top left y,
@@ -110,8 +218,11 @@ class Track:
         ret[2:4] = ret[:2] + ret[2:4]
         return ret
 
-    def get_exts(self):
+    def get_exts1(self):
         return self.mean[4:].copy()
+
+    def get_exts2(self):
+        return np.array(self.exts2)
 
     def predict(self, kf):
         """Propagate the state distribution to the current time step using a
@@ -142,6 +253,8 @@ class Track:
         self.mean, self.covariance = kf.update(
             self.mean, self.covariance, detection.to_xyah())
         self.features.append(detection.feature)
+        self.objFilter.filter(detection)
+        self.exts2 = detection.exts2
 
         self.hits += 1
         self.time_since_update = 0
