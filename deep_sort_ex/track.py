@@ -88,17 +88,16 @@ class Filter2(object):
 
 # 滤波方案总成
 class Filter(object):
-    def __init__(self, filter_type=0):
+    def __init__(self, filter_type=0, q_size=4, std_th=0.05, Q=1e-6, R=4e-4):
         '''
         @param fitler_type - 滤波器方案,对应 FilterX
-        @param        
         '''
         if filter_type==0:
-            self.objFilter = Filter0()
+            self.objFilter = Filter0(N=q_size)
         elif filter_type==1:
-            self.objFilter = Filter1()
+            self.objFilter = Filter1(N=q_size, std_th=std_th)
         elif filter_type==2:
-            self.objFilter = Filter2()
+            self.objFilter = Filter2(Q=Q, R=R)
 
     def filter(self, det):
         if not det.exts2 is None:
@@ -170,7 +169,7 @@ class Track:
     """
 
     def __init__(self, mean, covariance, track_id, n_init, max_age,
-                 feature=None, binding_obj=None, filter_type=0):
+                 feature=None, binding_obj=None, filter_type=0, q_size=4, std_th=0.05, Q=1e-6, R=4e-4):
         self.mean = mean
         self.covariance = covariance
         self.track_id = track_id
@@ -186,7 +185,7 @@ class Track:
         self._n_init = n_init
         self._max_age = max_age
         self.binding_obj = binding_obj
-        self.objFilter = Filter(filter_type=filter_type)
+        self.objFilter = Filter(filter_type=filter_type, q_size=q_size, std_th=std_th, Q=Q, R=R)
         self.exts2 = None
 
     def to_tlwh(self):
