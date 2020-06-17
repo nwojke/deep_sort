@@ -86,6 +86,26 @@ class Filter2(object):
             self.K_prev = K
             self.X_prev = data[:, i]
 
+# 滤波方案3
+class Filter3(object):
+    def __init__(self, N=4, std_th=0.05, Q=1e-6, R=4e-4):
+        '''
+        @param N      - 队列长度
+        @param std_th - 方差域值
+        @param Q - Q参数, channel x 1
+        @param R - R参数, channel x 1
+        '''
+        self.filter1 = Filter1(N=N, std_th=std_th)
+        self.filter2 = Filter2(Q=Q, R=R)
+
+    def filter(self, data):
+        '''
+        @param data - np.array: channels x data_len
+        '''
+        self.filter1.filter(data)
+        self.filter2.filter(data)
+
+
 # 滤波方案总成
 class Filter(object):
     def __init__(self, filter_type=0, q_size=4, std_th=0.05, Q=1e-6, R=4e-4):
@@ -98,6 +118,8 @@ class Filter(object):
             self.objFilter = Filter1(N=q_size, std_th=std_th)
         elif filter_type==2:
             self.objFilter = Filter2(Q=Q, R=R)
+        elif filter_type==3:
+            self.objFilter = Filter3(N=q_size, std_th=std_th, Q=Q, R=R)
 
     def filter(self, det):
         if not det.exts2 is None:
@@ -169,7 +191,19 @@ class Track:
     """
 
     def __init__(self, mean, covariance, track_id, n_init, max_age,
-                 feature=None, binding_obj=None, filter_type=0, q_size=4, std_th=0.05, Q=1e-6, R=4e-4):
+                 feature=None, binding_obj=None, filter_type=0, q_size=4, std_th=0.05, Q=1e-6, R=4e-4, save_to=None):
+        '''
+        扩展属性
+        -----
+        @param n_extend    - mean扩展属性数目
+        @param filter_type - [Track] exts2滤波器类型
+        @param q_size      - [Track] 队列长度
+        @param std_th      - [Track] 相对误差域值
+        @param Q           - [Track] 卡尔曼滤波器参数
+        @param R           - [Track] 卡尔曼滤波器参数
+        @param save_to     - [Track] 采集数据保存目录
+        '''
+
         self.mean = mean
         self.covariance = covariance
         self.track_id = track_id
@@ -187,6 +221,10 @@ class Track:
         self.binding_obj = binding_obj
         self.objFilter = Filter(filter_type=filter_type, q_size=q_size, std_th=std_th, Q=Q, R=R)
         self.exts2 = None
+        self.save_to = save_to
+        if not save_to is None:
+            import os
+            os.makedirs(save_to, exist_ok=True)
 
     def to_tlwh(self):
         """Get current position in bounding box format `(top left x, top left y,
@@ -249,12 +287,36 @@ class Track:
             The associated detection.
 
         """
+        # 数据采集: 滤波前
+        # ---------------
+        if not self.save_to is None:
+            with open('%s/mean-orign-%d.txt' % (self.save_to, self.track_id), 'a+') as f:
+                f.write(str(list(detection.to_xyah()))[1:-1])
+                f.write('\n')
+            with open('%s/exts2-orign-%d.txt' % (self.save_to, self.track_id), 'a+') as f:
+                f.write(str(list(detection.exts2))[1:-1])
+                f.write('\n')
+
+        # 跟踪/滤波处理
+        # ------------
         self.mean, self.covariance = kf.update(
             self.mean, self.covariance, detection.to_xyah())
         self.features.append(detection.feature)
         self.objFilter.filter(detection)
         self.exts2 = detection.exts2
 
+        # 数据采集: 滤波后
+        # ---------------
+        if not self.save_to is None:
+            with open('%s/mean-filter-%d.txt' % (self.save_to, self.track_id), 'a+') as f:
+                f.write(str(list(self.mean))[1:-1])
+                f.write('\n')
+            with open('%s/exts2-filter-%d.txt' % (self.save_to, self.track_id), 'a+') as f:
+                f.write(str(list(self.exts2))[1:-1])
+                f.write('\n')
+
+        # 状态更新
+        # --------
         self.hits += 1
         self.time_since_update = 0
         if self.state == TrackState.Tentative and self.hits >= self._n_init:
