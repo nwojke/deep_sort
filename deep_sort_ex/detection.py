@@ -26,7 +26,7 @@ class Detection(object):
 
     """
 
-    def __init__(self, tlwh, confidence, feature, exts1=None, exts2=None, binding_obj=None):
+    def __init__(self, tlwh, confidence, feature, exts1=None, exts2=None, binding_obj=None, flag=None):
         '''
         @param tlwh         - bbox: top, left, width, height
         @param confidence   - 目标检测置信度
@@ -34,11 +34,13 @@ class Detection(object):
         @param exts1        - 扩展属性: 扩展卡尔曼滤波器的向量(mean)， 需要与 tracker,track的n_extend参数配合使用
         @param exts2        - 扩展属性: 独立于卡尔曼滤波器，对扩展通道单独处理
         @param binding_obj  - 绑定原始目标检测的序号，方便数据源跟踪
+        @param flag         - 跟踪目标标记， 如用于目标类别，由外部解析
         '''
         self.tlwh = np.asarray(tlwh, dtype=np.float)
         self.exts1 = exts1
         self.exts2 = exts2
         self.binding_obj = binding_obj
+        self.flag = flag
         self.confidence = float(confidence)
         self.feature = np.asarray(feature, dtype=np.float32)
 

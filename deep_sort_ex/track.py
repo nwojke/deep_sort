@@ -28,13 +28,15 @@ class Filter0(object):
 class Filter1(object):
     '''依据方差剔除奇点数据
     '''
-    def __init__(self, N=4, std_th=0.05):
+    def __init__(self, N=4, std_th=0.05, percent=0.8):
         '''
-        @param N      - 队列长度
-        @param std_th - 方差域值
+        @param N       - 队列长度
+        @param std_th  - 方差域值
+        @param percent - 奇异点保留前置能量比，当设为1.0即为完全用前置点替换奇异点
         '''
         self.q_size = N
         self.std_th = std_th
+        self.percent = percent
         self.q = queue.Queue()
 
     def filter(self, data):
@@ -47,7 +49,7 @@ class Filter1(object):
                 mean_vals = np.array(q_data).mean(axis=0)
                 err_vals = [data[:, i]-mean_vals]/mean_vals
                 filter_ids = err_vals>self.std_th
-                data[filter_ids[0], i] = mean_vals[filter_ids[0]]*0.8 + data[filter_ids[0], i]*0.2
+                data[filter_ids[0], i] = mean_vals[filter_ids[0]]*self.percent + data[filter_ids[0], i]*(1.0-self.percent)
             self.q.put(data[:, i])
             if self.q.qsize()>self.q_size:
                 self.q.get()
@@ -88,14 +90,15 @@ class Filter2(object):
 
 # 滤波方案3
 class Filter3(object):
-    def __init__(self, N=4, std_th=0.05, Q=1e-6, R=4e-4):
+    def __init__(self, N=4, std_th=0.05, percent=0.8, Q=1e-6, R=4e-4):
         '''
-        @param N      - 队列长度
-        @param std_th - 方差域值
+        @param N       - 队列长度
+        @param std_th  - 方差域值
+        @param percent - 奇异点保留前置能量比，当设为1.0即为完全用前置点替换奇异点
         @param Q - Q参数, channel x 1
         @param R - R参数, channel x 1
         '''
-        self.filter1 = Filter1(N=N, std_th=std_th)
+        self.filter1 = Filter1(N=N, std_th=std_th, percent=percent)
         self.filter2 = Filter2(Q=Q, R=R)
 
     def filter(self, data):
@@ -108,18 +111,18 @@ class Filter3(object):
 
 # 滤波方案总成
 class Filter(object):
-    def __init__(self, filter_type=0, q_size=4, std_th=0.05, Q=1e-6, R=4e-4):
+    def __init__(self, filter_type=0, q_size=4, std_th=0.05, percent=0.8, Q=1e-6, R=4e-4):
         '''
         @param fitler_type - 滤波器方案,对应 FilterX
         '''
         if filter_type==0:
             self.objFilter = Filter0(N=q_size)
         elif filter_type==1:
-            self.objFilter = Filter1(N=q_size, std_th=std_th)
+            self.objFilter = Filter1(N=q_size, std_th=std_th, percent=percent)
         elif filter_type==2:
             self.objFilter = Filter2(Q=Q, R=R)
         elif filter_type==3:
-            self.objFilter = Filter3(N=q_size, std_th=std_th, Q=Q, R=R)
+            self.objFilter = Filter3(N=q_size, std_th=std_th, percent=percent, Q=Q, R=R)
 
     def filter(self, det):
         if not det.exts2 is None:
@@ -191,7 +194,7 @@ class Track:
     """
 
     def __init__(self, mean, covariance, track_id, n_init, max_age,
-                 feature=None, binding_obj=None, filter_type=0, q_size=4, std_th=0.05, Q=1e-6, R=4e-4, save_to=None):
+                 feature=None, binding_obj=None, filter_type=0, q_size=4, std_th=0.05, percent=0.8, Q=1e-6, R=4e-4, save_to=None):
         '''
         扩展属性
         -----
@@ -199,6 +202,7 @@ class Track:
         @param filter_type - [Track] exts2滤波器类型
         @param q_size      - [Track] 队列长度
         @param std_th      - [Track] 相对误差域值
+        @param percent     - [Track] 奇异点保留前置能量比，当设为1.0即为完全用前置点替换奇异点
         @param Q           - [Track] 卡尔曼滤波器参数
         @param R           - [Track] 卡尔曼滤波器参数
         @param save_to     - [Track] 采集数据保存目录
@@ -290,10 +294,10 @@ class Track:
         # 数据采集: 滤波前
         # ---------------
         if not self.save_to is None:
-            with open('%s/mean-orign-%d.txt' % (self.save_to, self.track_id), 'a+') as f:
+            with open('%s/mean-orign-%s-%d.txt' % (self.save_to, detection.flag, self.track_id), 'a+') as f:
                 f.write(str(list(detection.to_xyah()))[1:-1])
                 f.write('\n')
-            with open('%s/exts2-orign-%d.txt' % (self.save_to, self.track_id), 'a+') as f:
+            with open('%s/exts2-orign-%s-%d.txt' % (self.save_to, detection.flag, self.track_id), 'a+') as f:
                 f.write(str(list(detection.exts2))[1:-1])
                 f.write('\n')
 
@@ -308,10 +312,10 @@ class Track:
         # 数据采集: 滤波后
         # ---------------
         if not self.save_to is None:
-            with open('%s/mean-filter-%d.txt' % (self.save_to, self.track_id), 'a+') as f:
+            with open('%s/mean-filter-%s-%d.txt' % (self.save_to, detection.flag, self.track_id), 'a+') as f:
                 f.write(str(list(self.mean))[1:-1])
                 f.write('\n')
-            with open('%s/exts2-filter-%d.txt' % (self.save_to, self.track_id), 'a+') as f:
+            with open('%s/exts2-filter-%s-%d.txt' % (self.save_to, detection.flag, self.track_id), 'a+') as f:
                 f.write(str(list(self.exts2))[1:-1])
                 f.write('\n')
 
