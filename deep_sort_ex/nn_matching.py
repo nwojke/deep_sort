@@ -1,6 +1,6 @@
 # vim: expandtab:ts=4:sw=4
 import numpy as np
-
+import sys
 
 def _pdist(a, b):
     """Compute pair-wise squared distance between points in `a` and `b`.

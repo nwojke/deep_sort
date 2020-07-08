@@ -2,7 +2,7 @@
 
 import queue
 import numpy as np
-
+from scipy.signal import butter, lfilter, lfilter_zi, freqz
 # 滤波方案0
 class Filter0(object):    
     '''均值滤波，设定队列长度，取队列均值作为输出
@@ -56,6 +56,8 @@ class Filter1(object):
 
 # 滤波方案2
 class Filter2(object):
+    '''简易的卡尔曼滤波
+    '''
     def __init__(self, Q=1e-6, R=4e-4):
         '''
         @param Q - Q参数, channel x 1
@@ -88,18 +90,25 @@ class Filter2(object):
             self.K_prev = K
             self.X_prev = data[:, i]
 
-# 滤波方案3
-class Filter3(object):
-    def __init__(self, N=4, std_th=0.05, percent=0.8, Q=1e-6, R=4e-4):
+# 滤波方案3_del
+class Filter3_del(object):
+    '''集成奇异值过滤和卡尔曼滤波
+    '''
+    def __init__(self, N=4, std_th=0.05, percent=0.8, Q=1e-6, R=4e-4, fs=5., cutoff=1.0, order=5):
         '''
         @param N       - 队列长度
         @param std_th  - 方差域值
         @param percent - 奇异点保留前置能量比，当设为1.0即为完全用前置点替换奇异点
         @param Q - Q参数, channel x 1
         @param R - R参数, channel x 1
+        @param fs       - 采样率
+        @param cutoff   - 截止频率, Hz
+        @param order    - 滤波器阶数
+
         '''
         self.filter1 = Filter1(N=N, std_th=std_th, percent=percent)
         self.filter2 = Filter2(Q=Q, R=R)
+        self.filter4 = Filter4(fs=fs, cutoff=cutoff, order=order)
 
     def filter(self, data):
         '''
@@ -107,28 +116,78 @@ class Filter3(object):
         '''
         self.filter1.filter(data)
         self.filter2.filter(data)
+        self.filter4.filter(data)
 
+# 滤波方案3
+class Filter3(object):
+    '''Buffer低通滤波器
+    '''
+    def __init__(self, fs, cutoff=2.0, order=5):
+        '''
+        @param fs       - 采样率
+        @param cutoff   - 截止频率, Hz
+        @param order    - 滤波器阶数
+        '''
+        self.order = order
+        b, a = self.butter_lowpass(cutoff, fs, order)
+        self.b = b 
+        self.a = a
+        self.zi = lfilter_zi(b, a)
+        self.index = 0
+
+    def butter_lowpass(self, cutoff, fs, order=5):
+        nyq = 0.5 * fs
+        normal_cutoff = cutoff / nyq
+        b, a = butter(order, normal_cutoff, btype='low', analog=False)
+        return b, a
+
+    def filter(self, data):
+        '''
+        @param data - [InPlace], channel x data_len
+        '''
+        index = self.index
+        for data_chl in data: 
+            for i in range(len(data_chl)):
+                z, self.zi = lfilter(self.b, self.a, [data_chl[i]], zi=self.zi)
+                if index+i<self.order:
+                    continue
+                data_chl[i] = z
+        self.index += data.shape[0]
+    
 
 # 滤波方案总成
 class Filter(object):
-    def __init__(self, filter_type=0, q_size=4, std_th=0.05, percent=0.8, Q=1e-6, R=4e-4):
+    def __init__(self, filter_type=4, q_size=4, std_th=0.05, percent=0.8, Q=1e-6, R=4e-4, fs=5, cutoff=2.0, order=5):
         '''
         @param fitler_type - 滤波器方案,对应 FilterX
         '''
-        if filter_type==0:
-            self.objFilter = Filter0(N=q_size)
-        elif filter_type==1:
-            self.objFilter = Filter1(N=q_size, std_th=std_th, percent=percent)
-        elif filter_type==2:
-            self.objFilter = Filter2(Q=Q, R=R)
-        elif filter_type==3:
-            self.objFilter = Filter3(N=q_size, std_th=std_th, percent=percent, Q=Q, R=R)
+        self.filters = []
+        if filter_type&(1<<0):
+            self.filters.append(Filter0(N=q_size))
+        if filter_type&(1<<1):
+            self.filters.append(Filter1(N=q_size, std_th=std_th, percent=percent))
+        if filter_type&(1<<2):
+            self.filters.append(Filter2(Q=Q, R=R))
+        if filter_type&(1<<3):
+            self.filters.append(Filter3(fs=fs, cutoff=cutoff, order=order))
 
     def filter(self, det):
+        '''
+        @param det - det.exts2: [d1, d2,....]
+        '''
         if not det.exts2 is None:
             data = np.expand_dims(det.exts2, axis=1)
-            self.objFilter.filter(data)
+            for f in self.filters:
+                f.filter(data)
             det.exts2 = data.reshape(-1)
+
+    def filter_data(self, data):
+        '''
+        @param data - data: dim2 array
+        '''
+        for f in self.filters:
+            f.filter(data)
+        return data
 
 
 class TrackState:
@@ -194,7 +253,7 @@ class Track:
     """
 
     def __init__(self, mean, covariance, track_id, n_init, max_age,
-                 feature=None, binding_obj=None, filter_type=0, q_size=4, std_th=0.05, percent=0.8, Q=1e-6, R=4e-4, save_to=None):
+                 feature=None, binding_obj=None, filter_type=0, q_size=4, std_th=0.05, percent=0.8, Q=1e-6, R=4e-4, fs=5., cutoff=1., order=5, save_to=None):
         '''
         扩展属性
         -----
@@ -205,6 +264,9 @@ class Track:
         @param percent     - [Track] 奇异点保留前置能量比，当设为1.0即为完全用前置点替换奇异点
         @param Q           - [Track] 卡尔曼滤波器参数
         @param R           - [Track] 卡尔曼滤波器参数
+        @param fs          - [Track] 采样率
+        @param cutoff      - [Track] 截止频率, Hz
+        @param order       - [Track] 滤波器阶数
         @param save_to     - [Track] 采集数据保存目录
         '''
 
@@ -223,7 +285,7 @@ class Track:
         self._n_init = n_init
         self._max_age = max_age
         self.binding_obj = binding_obj
-        self.objFilter = Filter(filter_type=filter_type, q_size=q_size, std_th=std_th, Q=Q, R=R)
+        self.objFilter = Filter(filter_type=filter_type, q_size=q_size, std_th=std_th, Q=Q, R=R, fs=fs, cutoff=cutoff, order=order)
         self.exts2 = None
         self.save_to = save_to
         if not save_to is None:
