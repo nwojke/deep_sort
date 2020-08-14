@@ -19,13 +19,17 @@ class Filter0(object):
         @param data - np.array: channels x data_len
         '''
         for i in range(data.shape[1]):
-            self.q.put(data[:, i])
-            data[:, i] = np.array(self.q.queue).mean(axis=0)
+            if np.isnan(data[:, i]).any():
+                data[:, i] = np.array(self.q.queue).mean(axis=0)
+                self.q.put(data[:, i])
+            else:
+                self.q.put(data[:, i])
+                data[:, i] = np.array(self.q.queue).mean(axis=0)
             if self.q.qsize()>=self.N:
                 self.q.get()
 
 # 滤波方案1
-class Filter1(object):
+class Filter1_del(object):
     '''依据方差剔除奇点数据
     '''
     def __init__(self, N=4, std_th=0.05, percent=0.8):
@@ -44,12 +48,64 @@ class Filter1(object):
         @param data - np.array: channels x data_len
         '''
         for i in range(data.shape[1]):
+            if np.isnan(data[:, i]):
+                data[:, i] = np.array(self.q.queue).mean(axis=0)
             if self.q.qsize()==self.q_size:
                 q_data = np.array(self.q.queue)
                 mean_vals = np.array(q_data).mean(axis=0)
-                err_vals = [data[:, i]-mean_vals]/mean_vals
+                err_vals = (data[:, i]-mean_vals)/mean_vals
                 filter_ids = err_vals>self.std_th
-                data[filter_ids[0], i] = mean_vals[filter_ids[0]]*self.percent + data[filter_ids[0], i]*(1.0-self.percent)
+                #data[filter_ids[0], i] = mean_vals[filter_ids[0]]*self.percent + data[filter_ids[0], i]*(1.0-self.percent)
+                for j, t in enumerate(filter_ids):
+                    if t:
+                        data[j, i] = mean_vals[j]*self.percent + data[j, i]*(1.0-self.percent)
+            self.q.put(data[:, i])
+            if self.q.qsize()>self.q_size:
+                self.q.get()
+
+# 滤波方案1
+class Filter1(object):
+    '''依据方差剔除奇点数据
+        根据方差统计动态调整percent值
+    设置队列记录过去N个数据值 queue[N]
+    计算标准差 std(queue) => std_val
+    动态计算percnet: 标准差换算
+        相对误差 err = (det-mean)/mean
+        设定sigmod曲线表 tbl_percent = np.exp(range(-100, 1))
+        设定相对误差最大阈值 std_val = 0.1
+        相对误差换算曲线表序号 tbl_index = int(err*(100/std_val))
+        tbl_index修正处理: >100 => 设置为100
+        percent = tbl_percent[tbl_index]
+    
+    '''
+    def __init__(self, N=4, std_th=0.1, percent=0.8):
+        '''
+        @param N       - 队列长度
+        @param std_th  - 方差阈值
+        @param percent - 奇异点保留前置能量比，当设为1.0即为完全用前置点替换奇异点
+        '''
+        self.q_size = N
+        self.std_th = std_th
+        self.percent = percent
+        self.q = queue.Queue()
+        self.tbl_percent = np.exp(range(-100, 1)) # 
+        self.max_val = 100/std_th
+
+    def filter(self, data):
+        '''
+        @param data - np.array: channels x data_len
+        '''
+        for i in range(data.shape[1]):
+            if np.isnan(data[:, i]).any():
+                data[:, i] = np.array(self.q.queue).mean(axis=0)
+            if self.q.qsize()==self.q_size:
+                q_data = np.array(self.q.queue)
+                mean_vals = np.array(q_data).mean(axis=0)
+                err_vals = abs(data[:, i]-mean_vals)/abs(mean_vals)
+                percent_ids = (err_vals*self.max_val).astype(np.int) # 相对误差截止点 0.1
+                percent_ids[percent_ids>100]=100             # sigmod曲线
+                percents = self.tbl_percent[percent_ids]
+                data[:, i] = mean_vals*percents + data[:, i]*(1.0-percents)
             self.q.put(data[:, i])
             if self.q.qsize()>self.q_size:
                 self.q.get()
@@ -75,14 +131,28 @@ class Filter2(object):
         @param data - [InPlace], channel x data_len
         '''
         if self.b_first:
-            self.b_first = False
-            self.X_prev = data[:,0]
-            self.P_prev = np.zeros_like(self.X_prev)
+            # 查找第一个非 NaN数据
+            next_i = None
+            for i in range(data.shape[1]):
+                if not np.isnan(data[:, i]):
+                    next_i=i+1
+                    break
+            if not next_i is None:
+                self.b_first = False
+                self.X_prev = data[:, next_i-1]
+                self.P_prev = np.zeros_like(self.X_prev)
+            else:
+                next_i = data.shape[1]+1
         else:
+            if np.isnan(data[:, 0]):
+                data[:, 0] = self.X_prev
             self.K_prev = self.P_prev / (self.P_prev + self.R)
             data[:, 0] = self.X_prev + self.K_prev * (data[:, 0] - self.X_prev)
             self.P_prev = self.P_prev - self.K_prev * self.P_prev + self.Q
-        for i in range(data.shape[1]):
+            next_i = 1
+        for i in range(next_i, data.shape[1]):
+            if np.isnan(data[:, i]):
+                data[:, i] = self.X_prev
             K = self.P_prev / (self.P_prev + self.R)
             data[:, i] = data[:, i-1] + K * (data[:, i] - data[:, i-1])
             P = self.P_prev - K * self.P_prev + self.Q
@@ -133,6 +203,9 @@ class Filter3(object):
         self.b = b 
         self.a = a
         self.zi = lfilter_zi(b, a)
+        self.data_first_len = int(order*2)
+        self.data_first = np.zeros((self.data_first_len,), dtype=np.float32)
+        self.prev_val = None
         self.index = 0
 
     def butter_lowpass(self, cutoff, fs, order=5):
@@ -145,14 +218,28 @@ class Filter3(object):
         '''
         @param data - [InPlace], channel x data_len
         '''
+        if self.prev_val is None:
+            self.prev_val = np.zeros((data.shape[0],))
         index = self.index
-        for data_chl in data: 
-            for i in range(len(data_chl)):
+        for chl, data_chl in enumerate(data): 
+            for i in range(len(data_chl)):                
+                if np.isnan(data_chl[i]):
+                    data_chl[i] = self.prev_val[chl]
                 z, self.zi = lfilter(self.b, self.a, [data_chl[i]], zi=self.zi)
-                if index+i<self.order:
-                    continue
-                data_chl[i] = z
-        self.index += data.shape[0]
+                #if index+i<self.order:
+                #    continue
+                if index+i<self.data_first_len:
+                    self.data_first[index+i] = data_chl[i]
+                    if index+i<3:
+                        _data = self.data_first[:index+i+1]
+                    else:
+                        _data = self.data_first[index+i-3:index+i+1]
+                    data_chl[i] = _data.mean()
+                else:
+                    data_chl[i] = z
+                self.prev_val[chl]=data_chl[i]
+        #self.index += data.shape[0]
+        self.index += data.shape[1]
     
 
 # 滤波方案总成
@@ -356,10 +443,10 @@ class Track:
         # 数据采集: 滤波前
         # ---------------
         if not self.save_to is None:
-            with open('%s/mean-orign-%s-%d.txt' % (self.save_to, detection.flag, self.track_id), 'a+') as f:
+            with open('%s/mean-origin-%s-%d.txt' % (self.save_to, detection.flag, self.track_id), 'a+') as f:
                 f.write(str(list(detection.to_xyah()))[1:-1])
                 f.write('\n')
-            with open('%s/exts2-orign-%s-%d.txt' % (self.save_to, detection.flag, self.track_id), 'a+') as f:
+            with open('%s/exts2-origin-%s-%d.txt' % (self.save_to, detection.flag, self.track_id), 'a+') as f:
                 f.write(str(list(detection.exts2))[1:-1])
                 f.write('\n')
 
