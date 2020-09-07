@@ -72,6 +72,13 @@ class Tracker:
         self.tracks = []
         self._next_id = 1
 
+
+    def reset(self):
+        # reset DeepSORT
+        del self.tracks[:]
+        self._next_id = 1
+
+
     def predict(self):
         """Propagate track state distributions one time step forward.
 
@@ -80,7 +87,7 @@ class Tracker:
         for track in self.tracks:
             track.predict(self.kf)
 
-    def update(self, detections):
+    def update(self, detections, save_to=None):
         """Perform measurement update and track management.
 
         Parameters
@@ -96,7 +103,7 @@ class Tracker:
         # Update track set.
         for track_idx, detection_idx in matches:
             self.tracks[track_idx].update(
-                self.kf, detections[detection_idx])
+                self.kf, detections[detection_idx], save_to=save_to)
             # update track.binding_obj
             self.tracks[track_idx].binding_obj = detections[detection_idx].binding_obj
 
@@ -119,6 +126,7 @@ class Tracker:
             track.features = []
         self.metric.partial_fit(
             np.asarray(features), np.asarray(targets), active_targets)
+
 
     def _match(self, detections):
 

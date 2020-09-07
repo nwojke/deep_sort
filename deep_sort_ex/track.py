@@ -1,5 +1,6 @@
 # vim: expandtab:ts=4:sw=4
 
+import os
 import queue
 import numpy as np
 from scipy.signal import butter, lfilter, lfilter_zi, freqz
@@ -18,49 +19,25 @@ class Filter0(object):
         '''
         @param data - np.array: channels x data_len
         '''
+        #for i in range(data.shape[1]):
+        #    if np.isnan(data[:, i]).any():
+        #        data[:, i] = np.array(self.q.queue).mean(axis=0)
+        #        self.q.put(data[:, i])
+        #    else:
+        #        self.q.put(data[:, i])
+        #        data[:, i] = np.array(self.q.queue).mean(axis=0)
+        #    if self.q.qsize()>=self.N:
+        #        self.q.get()
+
         for i in range(data.shape[1]):
-            if np.isnan(data[:, i]).any():
-                data[:, i] = np.array(self.q.queue).mean(axis=0)
-                self.q.put(data[:, i])
+            if np.isnan(data[:, i]).any() or (data[:, i]==9999.0).any():
+                if self.q.qsize()>0:
+                    data[:, i] = np.array(self.q.queue).mean(axis=0)
+                    self.q.put(data[:, i])
             else:
                 self.q.put(data[:, i])
                 data[:, i] = np.array(self.q.queue).mean(axis=0)
             if self.q.qsize()>=self.N:
-                self.q.get()
-
-# 滤波方案1
-class Filter1_del(object):
-    '''依据方差剔除奇点数据
-    '''
-    def __init__(self, N=4, std_th=0.05, percent=0.8):
-        '''
-        @param N       - 队列长度
-        @param std_th  - 方差域值
-        @param percent - 奇异点保留前置能量比，当设为1.0即为完全用前置点替换奇异点
-        '''
-        self.q_size = N
-        self.std_th = std_th
-        self.percent = percent
-        self.q = queue.Queue()
-
-    def filter(self, data):
-        '''
-        @param data - np.array: channels x data_len
-        '''
-        for i in range(data.shape[1]):
-            if np.isnan(data[:, i]):
-                data[:, i] = np.array(self.q.queue).mean(axis=0)
-            if self.q.qsize()==self.q_size:
-                q_data = np.array(self.q.queue)
-                mean_vals = np.array(q_data).mean(axis=0)
-                err_vals = (data[:, i]-mean_vals)/mean_vals
-                filter_ids = err_vals>self.std_th
-                #data[filter_ids[0], i] = mean_vals[filter_ids[0]]*self.percent + data[filter_ids[0], i]*(1.0-self.percent)
-                for j, t in enumerate(filter_ids):
-                    if t:
-                        data[j, i] = mean_vals[j]*self.percent + data[j, i]*(1.0-self.percent)
-            self.q.put(data[:, i])
-            if self.q.qsize()>self.q_size:
                 self.q.get()
 
 # 滤波方案1
@@ -96,8 +73,11 @@ class Filter1(object):
         @param data - np.array: channels x data_len
         '''
         for i in range(data.shape[1]):
-            if np.isnan(data[:, i]).any():
-                data[:, i] = np.array(self.q.queue).mean(axis=0)
+            exist_nan = False
+            if np.isnan(data[:, i]).any() or (data[:, i]==9999.0).any():
+                if self.q.qsize()>0:
+                    data[:, i] = np.array(self.q.queue).mean(axis=0)
+                exist_nan = True
             if self.q.qsize()==self.q_size:
                 q_data = np.array(self.q.queue)
                 mean_vals = np.array(q_data).mean(axis=0)
@@ -106,9 +86,11 @@ class Filter1(object):
                 percent_ids[percent_ids>100]=100             # sigmod曲线
                 percents = self.tbl_percent[percent_ids]
                 data[:, i] = mean_vals*percents + data[:, i]*(1.0-percents)
-            self.q.put(data[:, i])
-            if self.q.qsize()>self.q_size:
-                self.q.get()
+
+            if not exist_nan:
+                self.q.put(data[:, i])
+                if self.q.qsize()>self.q_size:
+                    self.q.get()
 
 # 滤波方案2
 class Filter2(object):
@@ -134,7 +116,7 @@ class Filter2(object):
             # 查找第一个非 NaN数据
             next_i = None
             for i in range(data.shape[1]):
-                if not np.isnan(data[:, i]):
+                if not np.isnan(data[:, i]).any() and  not (data[:, i]==9999.0).any() :
                     next_i=i+1
                     break
             if not next_i is None:
@@ -144,14 +126,14 @@ class Filter2(object):
             else:
                 next_i = data.shape[1]+1
         else:
-            if np.isnan(data[:, 0]):
+            if np.isnan(data[:, 0]).any() or (data[:, 0]==9999.0).any():
                 data[:, 0] = self.X_prev
             self.K_prev = self.P_prev / (self.P_prev + self.R)
             data[:, 0] = self.X_prev + self.K_prev * (data[:, 0] - self.X_prev)
             self.P_prev = self.P_prev - self.K_prev * self.P_prev + self.Q
             next_i = 1
         for i in range(next_i, data.shape[1]):
-            if np.isnan(data[:, i]):
+            if np.isnan(data[:, i]).any() or (data[:, i]==9999.0).any():
                 data[:, i] = self.X_prev
             K = self.P_prev / (self.P_prev + self.R)
             data[:, i] = data[:, i-1] + K * (data[:, i] - data[:, i-1])
@@ -160,33 +142,6 @@ class Filter2(object):
             self.K_prev = K
             self.X_prev = data[:, i]
 
-# 滤波方案3_del
-class Filter3_del(object):
-    '''集成奇异值过滤和卡尔曼滤波
-    '''
-    def __init__(self, N=4, std_th=0.05, percent=0.8, Q=1e-6, R=4e-4, fs=5., cutoff=1.0, order=5):
-        '''
-        @param N       - 队列长度
-        @param std_th  - 方差域值
-        @param percent - 奇异点保留前置能量比，当设为1.0即为完全用前置点替换奇异点
-        @param Q - Q参数, channel x 1
-        @param R - R参数, channel x 1
-        @param fs       - 采样率
-        @param cutoff   - 截止频率, Hz
-        @param order    - 滤波器阶数
-
-        '''
-        self.filter1 = Filter1(N=N, std_th=std_th, percent=percent)
-        self.filter2 = Filter2(Q=Q, R=R)
-        self.filter4 = Filter4(fs=fs, cutoff=cutoff, order=order)
-
-    def filter(self, data):
-        '''
-        @param data - np.array: channels x data_len
-        '''
-        self.filter1.filter(data)
-        self.filter2.filter(data)
-        self.filter4.filter(data)
 
 # 滤波方案3
 class Filter3(object):
@@ -223,7 +178,7 @@ class Filter3(object):
         index = self.index
         for chl, data_chl in enumerate(data): 
             for i in range(len(data_chl)):                
-                if np.isnan(data_chl[i]):
+                if np.isnan(data_chl[i]) or data_chl[i]==9999.0:
                     data_chl[i] = self.prev_val[chl]
                 z, self.zi = lfilter(self.b, self.a, [data_chl[i]], zi=self.zi)
                 #if index+i<self.order:
@@ -428,7 +383,7 @@ class Track:
         self.age += 1
         self.time_since_update += 1
 
-    def update(self, kf, detection):
+    def update(self, kf, detection, save_to=None):
         """Perform Kalman filter measurement update step and update the feature
         cache.
 
@@ -442,11 +397,17 @@ class Track:
         """
         # 数据采集: 滤波前
         # ---------------
-        if not self.save_to is None:
-            with open('%s/mean-origin-%s-%d.txt' % (self.save_to, detection.flag, self.track_id), 'a+') as f:
+        if not save_to is None:
+            save_file_origin_mean = '%s/mean/%s-%d/origin.txt' % (save_to, detection.flag, self.track_id)
+            save_file_origin_ext2 = '%s/exts2/%s-%d/origin.txt' % (save_to, detection.flag, self.track_id)
+            os.makedirs(os.path.dirname(save_file_origin_mean), exist_ok=True)
+            os.makedirs(os.path.dirname(save_file_origin_ext2), exist_ok=True)
+            #print('save_file_origin_mean: ', save_file_origin_mean)
+            #print('save_file_origin_ext2: ', save_file_origin_ext2)
+            with open(save_file_origin_mean, 'a+') as f:
                 f.write(str(list(detection.to_xyah()))[1:-1])
                 f.write('\n')
-            with open('%s/exts2-origin-%s-%d.txt' % (self.save_to, detection.flag, self.track_id), 'a+') as f:
+            with open(save_file_origin_ext2, 'a+') as f:
                 f.write(str(list(detection.exts2))[1:-1])
                 f.write('\n')
 
@@ -460,11 +421,17 @@ class Track:
 
         # 数据采集: 滤波后
         # ---------------
-        if not self.save_to is None:
-            with open('%s/mean-filter-%s-%d.txt' % (self.save_to, detection.flag, self.track_id), 'a+') as f:
+        if not save_to is None:
+            save_file_filter_mean = '%s/mean/%s-%d/filter.txt' % (save_to, detection.flag, self.track_id)
+            save_file_filter_ext2 = '%s/exts2/%s-%d/filter.txt' % (save_to, detection.flag, self.track_id)
+            os.makedirs(os.path.dirname(save_file_filter_mean), exist_ok=True)
+            os.makedirs(os.path.dirname(save_file_filter_ext2), exist_ok=True)
+            #print('save_file_filter_mean: ', save_file_filter_mean)
+            #print('save_file_filter_ext2: ', save_file_filter_ext2)
+            with open(save_file_filter_mean, 'a+') as f:
                 f.write(str(list(self.mean))[1:-1])
                 f.write('\n')
-            with open('%s/exts2-filter-%s-%d.txt' % (self.save_to, detection.flag, self.track_id), 'a+') as f:
+            with open(save_file_filter_ext2, 'a+') as f:
                 f.write(str(list(self.exts2))[1:-1])
                 f.write('\n')
 
