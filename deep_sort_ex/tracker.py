@@ -172,5 +172,5 @@ class Tracker:
         mean, covariance = self.kf.initiate(detection.to_xyah())
         self.tracks.append(Track(
             mean, covariance, self._next_id, self.n_init, self.max_age,
-            detection.feature, binding_obj=detection.binding_obj, filter_type=self.filter_type, q_size=self.q_size, std_th=self.std_th, percent=self.percent, Q=self.Q, R=self.R, fs=self.fs, cutoff=self.cutoff, order=self.order, save_to=self.save_to))
+            feature=detection.feature, binding_obj=detection.binding_obj, filter_type=self.filter_type, q_size=self.q_size, std_th=self.std_th, percent=self.percent, Q=self.Q, R=self.R, fs=self.fs, cutoff=self.cutoff, order=self.order, save_to=self.save_to))
         self._next_id += 1

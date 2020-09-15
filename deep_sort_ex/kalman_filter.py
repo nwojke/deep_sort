@@ -46,10 +46,10 @@ class KalmanFilter(object):
         self.n_extend = n_extend
     
         # Create Kalman filter model matrices.
-        self._motion_mat = np.eye(2 * ndim, 2 * ndim)
+        self._motion_mat = np.eye(2 * ndim, 2 * ndim) # 预测矩阵F
         for i in range(ndim):
             self._motion_mat[i, ndim + i] = dt
-        self._update_mat = np.eye(ndim, 2 * ndim)
+        self._update_mat = np.eye(ndim, 2 * ndim)     #
 
         # Motion and observation uncertainty are chosen relative to the current
         # state estimate. These weights control the amount of uncertainty in
@@ -133,9 +133,9 @@ class KalmanFilter(object):
 
         motion_cov = np.diag(np.square(np.r_[std_pos, std_vel]))
 
-        mean = np.dot(self._motion_mat, mean)
+        mean = np.dot(self._motion_mat, mean) # x = F*x
         covariance = np.linalg.multi_dot((
-            self._motion_mat, covariance, self._motion_mat.T)) + motion_cov
+            self._motion_mat, covariance, self._motion_mat.T)) + motion_cov # P = F*P*F' + Q
 
         return mean, covariance
 
@@ -165,10 +165,10 @@ class KalmanFilter(object):
             std.append(self._std_weight_position * mean[3])
         innovation_cov = np.diag(np.square(std))
 
-        mean = np.dot(self._update_mat, mean)
+        mean = np.dot(self._update_mat, mean) # x = H * x
         covariance = np.linalg.multi_dot((
-            self._update_mat, covariance, self._update_mat.T))
-        return mean, covariance + innovation_cov
+            self._update_mat, covariance, self._update_mat.T)) # P = H*P*H' + R
+        return mean, covariance + innovation_cov # 
 
     def update(self, mean, covariance, measurement):
         """Run Kalman filter correction step.

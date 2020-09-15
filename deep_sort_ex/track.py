@@ -299,7 +299,8 @@ class Track:
         '''
         扩展属性
         -----
-        @param n_extend    - mean扩展属性数目
+        @param feature     - [list like] 目标特征向量
+        @param binding_obj - [int or object] 绑定对象
         @param filter_type - [Track] exts2滤波器类型
         @param q_size      - [Track] 队列长度
         @param std_th      - [Track] 相对误差域值
@@ -328,7 +329,10 @@ class Track:
         self._max_age = max_age
         self.binding_obj = binding_obj
         self.objFilter = Filter(filter_type=filter_type, q_size=q_size, std_th=std_th, Q=Q, R=R, fs=fs, cutoff=cutoff, order=order)
-        self.exts2 = None
+        self.exts2_prev = None  # 上一帧扩展信息
+        self.exts2      = None  # 当前帧扩展信息
+        self.t_prev     = None  # 上一帧时间(秒)
+        self.t          = None  # 当前帧时间(秒)
         self.save_to = save_to
         if not save_to is None:
             import os
@@ -368,6 +372,9 @@ class Track:
 
     def get_exts2(self):
         return np.array(self.exts2)
+
+    def get_exts2_prev(self):
+        return np.array(self.exts2_prev)
 
     def predict(self, kf):
         """Propagate the state distribution to the current time step using a
@@ -417,7 +424,14 @@ class Track:
             self.mean, self.covariance, detection.to_xyah())
         self.features.append(detection.feature)
         self.objFilter.filter(detection)
+
+        if not self.exts2 is None:
+            self.exts2_prev = self.exts2.copy()
+        self.t_prev = self.t
+
         self.exts2 = detection.exts2
+        self.t = detection.t
+
 
         # 数据采集: 滤波后
         # ---------------
