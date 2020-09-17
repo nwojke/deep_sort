@@ -59,7 +59,7 @@ class Filter1(object):
         '''
         @param N       - 队列长度
         @param std_th  - 方差阈值
-        @param percent - 奇异点保留前置能量比，当设为1.0即为完全用前置点替换奇异点
+        @param percent - [弃用，用sigmod自适应替代]奇异点保留前置能量比，当设为1.0即为完全用前置点替换奇异点
         '''
         self.q_size = N
         self.std_th = std_th
