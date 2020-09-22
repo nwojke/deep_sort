@@ -46,16 +46,16 @@ class KalmanFilter(object):
         self.n_extend = n_extend
     
         # Create Kalman filter model matrices.
-        self._motion_mat = np.eye(2 * ndim, 2 * ndim) # 预测矩阵F
+        self._motion_mat = np.eye(2 * ndim, 2 * ndim) # 预测矩阵 F: 匀速模型
         for i in range(ndim):
             self._motion_mat[i, ndim + i] = dt
-        self._update_mat = np.eye(ndim, 2 * ndim)     #
+        self._update_mat = np.eye(ndim, 2 * ndim)     # 传感器读数矩阵(测量矩阵) H
 
         # Motion and observation uncertainty are chosen relative to the current
         # state estimate. These weights control the amount of uncertainty in
         # the model. This is a bit hacky.
-        self._std_weight_position = 1. / 20
-        self._std_weight_velocity = 1. / 160
+        self._std_weight_position = 1. / 20     # 系统误差权重
+        self._std_weight_velocity = 1. / 160    # 系统误差权重
 
     def initiate(self, measurement):
         """Create track from unassociated measurement.
@@ -131,11 +131,11 @@ class KalmanFilter(object):
         for i in range(self.n_extend):
             std_vel.append(self._std_weight_velocity * mean[3])
 
-        motion_cov = np.diag(np.square(np.r_[std_pos, std_vel]))
+        motion_cov = np.diag(np.square(np.r_[std_pos, std_vel])) # 系统误差 Q
 
-        mean = np.dot(self._motion_mat, mean) # x = F*x
+        mean = np.dot(self._motion_mat, mean) # 状态预测: x = F*x
         covariance = np.linalg.multi_dot((
-            self._motion_mat, covariance, self._motion_mat.T)) + motion_cov # P = F*P*F' + Q
+            self._motion_mat, covariance, self._motion_mat.T)) + motion_cov # 更新协方差矩阵 P = F*P*F' + Q
 
         return mean, covariance
 
@@ -163,12 +163,12 @@ class KalmanFilter(object):
             self._std_weight_position * mean[3]]
         for i in range(self.n_extend):
             std.append(self._std_weight_position * mean[3])
-        innovation_cov = np.diag(np.square(std))
+        innovation_cov = np.diag(np.square(std)) # 传感器噪声 R
 
-        mean = np.dot(self._update_mat, mean) # x = H * x
+        mean = np.dot(self._update_mat, mean) # 提取前面4个分量: x = H * x
         covariance = np.linalg.multi_dot((
-            self._update_mat, covariance, self._update_mat.T)) # P = H*P*H' + R
-        return mean, covariance + innovation_cov # 
+            self._update_mat, covariance, self._update_mat.T)) # P = H*P*H'
+        return mean, covariance + innovation_cov # P = H*P*H' + R
 
     def update(self, mean, covariance, measurement):
         """Run Kalman filter correction step.
@@ -190,16 +190,18 @@ class KalmanFilter(object):
             Returns the measurement-corrected state distribution.
 
         """
-        projected_mean, projected_cov = self.project(mean, covariance)
-
+        projected_mean, projected_cov = self.project(mean, covariance) # 投影到测量空间
+        # Choresky分解: A=>L*L', projected_cov: P = H*P*H' + R
         chol_factor, lower = scipy.linalg.cho_factor(
             projected_cov, lower=True, check_finite=False)
+        # 求卡尔曼增益K: (H*P*H'+R)*K=P*H'
         kalman_gain = scipy.linalg.cho_solve(
             (chol_factor, lower), np.dot(covariance, self._update_mat.T).T,
             check_finite=False).T
-        innovation = measurement - projected_mean
+        innovation = measurement - projected_mean # 变化值
 
-        new_mean = mean + np.dot(innovation, kalman_gain.T)
+        new_mean = mean + np.dot(innovation, kalman_gain.T) # 新的均值向量 mean
+        # 新的协方差矩阵 P
         new_covariance = covariance - np.linalg.multi_dot((
             kalman_gain, projected_cov, kalman_gain.T))
         return new_mean, new_covariance
