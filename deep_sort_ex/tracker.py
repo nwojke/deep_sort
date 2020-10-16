@@ -37,7 +37,7 @@ class Tracker:
 
     """
 
-    def __init__(self, metric, max_iou_distance=0.7, max_age=30, n_init=3, n_extend=0, filter_type=0, q_size=4, std_th=0.05, percent=0.8, Q=1e-6, R=4e-4, fs=5., cutoff=1., order=5, save_to=None):
+    def __init__(self, metric, max_iou_distance=0.7, max_age=30, n_init=3, n_extend=0, filter_type=0, q_size=4, std_th=0.05, percent=0.8, Q=1e-6, R=4e-4, fs=5., cutoff=1., order=5):
         '''
         扩展属性
         -----
@@ -51,7 +51,6 @@ class Tracker:
         @param fs          - [Track] 采样率
         @param cutoff      - [Track] 截止频率, Hz
         @param order       - [Track] 滤波器阶数
-        @param save_to     - [Track] 采集数据保存目录
         '''
         self.metric = metric
         self.max_iou_distance = max_iou_distance
@@ -68,7 +67,6 @@ class Tracker:
         self.fs = fs
         self.cutoff = cutoff
         self.order = order
-        self.save_to = save_to         # 采集数据保存目录
         self.tracks = []
         self._next_id = 1
 
@@ -129,7 +127,6 @@ class Tracker:
 
 
     def _match(self, detections):
-
         def gated_metric(tracks, dets, track_indices, detection_indices):
             features = np.array([dets[i].feature for i in detection_indices])
             targets = np.array([tracks[i].track_id for i in track_indices])
@@ -172,5 +169,5 @@ class Tracker:
         mean, covariance = self.kf.initiate(detection.to_xyah())
         self.tracks.append(Track(
             mean, covariance, self._next_id, self.n_init, self.max_age,
-            feature=detection.feature, binding_obj=detection.binding_obj, filter_type=self.filter_type, q_size=self.q_size, std_th=self.std_th, percent=self.percent, Q=self.Q, R=self.R, fs=self.fs, cutoff=self.cutoff, order=self.order, save_to=self.save_to))
+            feature=detection.feature, binding_obj=detection.binding_obj, filter_type=self.filter_type, q_size=self.q_size, std_th=self.std_th, percent=self.percent, Q=self.Q, R=self.R, fs=self.fs, cutoff=self.cutoff, order=self.order))
         self._next_id += 1

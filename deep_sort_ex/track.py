@@ -19,16 +19,6 @@ class Filter0(object):
         '''
         @param data - np.array: channels x data_len
         '''
-        #for i in range(data.shape[1]):
-        #    if np.isnan(data[:, i]).any():
-        #        data[:, i] = np.array(self.q.queue).mean(axis=0)
-        #        self.q.put(data[:, i])
-        #    else:
-        #        self.q.put(data[:, i])
-        #        data[:, i] = np.array(self.q.queue).mean(axis=0)
-        #    if self.q.qsize()>=self.N:
-        #        self.q.get()
-
         for i in range(data.shape[1]):
             if np.isnan(data[:, i]).any() or (data[:, i]==9999.0).any():
                 if self.q.qsize()>0:
@@ -295,7 +285,7 @@ class Track:
     """
 
     def __init__(self, mean, covariance, track_id, n_init, max_age,
-                 feature=None, binding_obj=None, filter_type=0, q_size=4, std_th=0.05, percent=0.8, Q=1e-6, R=4e-4, fs=5., cutoff=1., order=5, save_to=None):
+                 feature=None, binding_obj=None, filter_type=0, q_size=4, std_th=0.05, percent=0.8, Q=1e-6, R=4e-4, fs=5., cutoff=1., order=5):
         '''
         扩展属性
         -----
@@ -310,7 +300,6 @@ class Track:
         @param fs          - [Track] 采样率
         @param cutoff      - [Track] 截止频率, Hz
         @param order       - [Track] 滤波器阶数
-        @param save_to     - [Track] 采集数据保存目录
         '''
 
         self.mean = mean
@@ -333,10 +322,7 @@ class Track:
         self.exts2      = None  # 当前帧扩展信息
         self.t_prev     = None  # 上一帧时间(秒)
         self.t          = None  # 当前帧时间(秒)
-        self.save_to = save_to
-        if not save_to is None:
-            import os
-            os.makedirs(save_to, exist_ok=True)
+
 
     def to_tlwh(self):
         """Get current position in bounding box format `(top left x, top left y,
@@ -404,18 +390,23 @@ class Track:
         """
         # 数据采集: 滤波前
         # ---------------
-        if not save_to is None:
+        if False and not save_to is None:
             save_file_origin_mean = '%s/mean/%s-%d/origin.txt' % (save_to, detection.flag, self.track_id)
             save_file_origin_ext2 = '%s/exts2/%s-%d/origin.txt' % (save_to, detection.flag, self.track_id)
             os.makedirs(os.path.dirname(save_file_origin_mean), exist_ok=True)
             os.makedirs(os.path.dirname(save_file_origin_ext2), exist_ok=True)
-            #print('save_file_origin_mean: ', save_file_origin_mean)
-            #print('save_file_origin_ext2: ', save_file_origin_ext2)
             with open(save_file_origin_mean, 'a+') as f:
                 f.write(str(list(detection.to_xyah()))[1:-1])
                 f.write('\n')
             with open(save_file_origin_ext2, 'a+') as f:
                 f.write(str(list(detection.exts2))[1:-1])
+                f.write('\n')
+
+        if not save_to is None:
+            save_file = '%s/%s_%d/origin.txt' % (save_to, detection.flag, self.track_id)
+            os.makedirs(os.path.dirname(save_file), exist_ok=True)
+            with open(save_file, 'a+') as f:
+                f.write(str(list(np.r_[self.to_tlbr(), detection.exts2]))[1:-1])
                 f.write('\n')
 
         # 跟踪/滤波处理
@@ -435,7 +426,11 @@ class Track:
 
         # 数据采集: 滤波后
         # ---------------
-        if not save_to is None:
+        if False and not save_to is None:
+            t, l, b, r = self.to_tlbr()
+            t, l, b, r = int(t), int(l), int(b), int(r)
+            #save_file_filter_mean = '%s/mean/%s-%d-%d-%d-%d-%d/filter.txt' % (save_to, detection.flag, self.track_id, t, l, b, r)
+            #save_file_filter_ext2 = '%s/exts2/%s-%d-%d-%d-%d-%d/filter.txt' % (save_to, detection.flag, self.track_id, t, l, b, r)
             save_file_filter_mean = '%s/mean/%s-%d/filter.txt' % (save_to, detection.flag, self.track_id)
             save_file_filter_ext2 = '%s/exts2/%s-%d/filter.txt' % (save_to, detection.flag, self.track_id)
             os.makedirs(os.path.dirname(save_file_filter_mean), exist_ok=True)
@@ -447,6 +442,13 @@ class Track:
                 f.write('\n')
             with open(save_file_filter_ext2, 'a+') as f:
                 f.write(str(list(self.exts2))[1:-1])
+                f.write('\n')
+
+        if not save_to is None:
+            save_file = '%s/%s_%d/filter.txt' % (save_to, detection.flag, self.track_id)
+            os.makedirs(os.path.dirname(save_file), exist_ok=True)
+            with open(save_file, 'a+') as f:
+                f.write(str(list(np.r_[self.to_tlbr(), detection.exts2]))[1:-1])
                 f.write('\n')
 
         # 状态更新
