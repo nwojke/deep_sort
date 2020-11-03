@@ -1,6 +1,6 @@
 # vim: expandtab:ts=4:sw=4
 import numpy as np
-
+import sys
 
 def _pdist(a, b):
     """Compute pair-wise squared distance between points in `a` and `b`.
@@ -151,7 +151,8 @@ class NearestNeighborDistanceMetric(object):
             self.samples.setdefault(target, []).append(feature)
             if self.budget is not None:
                 self.samples[target] = self.samples[target][-self.budget:]
-        self.samples = {k: self.samples[k] for k in active_targets}
+        # self.samples = {k: self.samples[k] for k in active_targets}
+        self.samples = {k: self.samples.get(k) for k in active_targets} # Modify
 
     def distance(self, features, targets):
         """Compute distance between features and targets.
@@ -173,5 +174,10 @@ class NearestNeighborDistanceMetric(object):
         """
         cost_matrix = np.zeros((len(targets), len(features)))
         for i, target in enumerate(targets):
+            # modefy begin
+            if self.samples.get(target) is None: 
+                print('[WARNING] self.samples.get(%d) is None, %s: %s here.' %(target, __file__, str(sys._getframe().f_lineno)))
+                continue
+            # modefy end
             cost_matrix[i, :] = self._metric(self.samples[target], features)
         return cost_matrix
