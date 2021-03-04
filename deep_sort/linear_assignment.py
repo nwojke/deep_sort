@@ -1,7 +1,7 @@
 # vim: expandtab:ts=4:sw=4
 from __future__ import absolute_import
 import numpy as np
-from sklearn.utils.linear_assignment_ import linear_assignment
+from scipy.optimize import linear_sum_assignment as linear_assignment
 from . import kalman_filter
 
 
@@ -55,8 +55,13 @@ def min_cost_matching(
     cost_matrix = distance_metric(
         tracks, detections, track_indices, detection_indices)
     cost_matrix[cost_matrix > max_distance] = max_distance + 1e-5
+    # https://github.com/nwojke/deep_sort/issues/234#issuecomment-762203701
     indices = linear_assignment(cost_matrix)
-
+    # indices = np.hstack([indices[0].reshape(((indices[0].shape[0]), 1)),indices[1].reshape(((indices[0].shape[0]), 1))])
+    
+    # yolov4-deepsort/deep_sort/linear_assignment.py
+    indices = np.asarray(indices)
+    indices = np.transpose(indices)
     matches, unmatched_tracks, unmatched_detections = [], [], []
     for col, detection_idx in enumerate(detection_indices):
         if col not in indices[:, 1]:
