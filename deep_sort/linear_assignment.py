@@ -59,7 +59,7 @@ def min_cost_matching(
     indices = linear_assignment(cost_matrix)
     # indices = np.hstack([indices[0].reshape(((indices[0].shape[0]), 1)),indices[1].reshape(((indices[0].shape[0]), 1))])
     
-    # yolov4-deepsort/deep_sort/linear_assignment.py
+    # https://github.com/allenwu5/yolov4-deepsort/blob/ab114b38328b42943f7c53250d15609a8f5d988f/deep_sort/linear_assignment.py#L58-L60
     indices = np.asarray(indices)
     indices = np.transpose(indices)
     matches, unmatched_tracks, unmatched_detections = [], [], []
