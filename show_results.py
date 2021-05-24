@@ -70,7 +70,7 @@ def run(sequence_dir, result_file, show_false_alarms=False, detection_file=None,
                     vis.viewer.thickness = 4
                     vis.viewer.rectangle(*box.astype(np.int))
 
-    if update_ms is None:
+    if update_ms is not None:
         update_ms = seq_info["update_ms"]
     if update_ms is None:
         update_ms = DEFAULT_UPDATE_MS
