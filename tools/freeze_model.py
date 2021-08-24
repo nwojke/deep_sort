@@ -1,8 +1,9 @@
 # vim: expandtab:ts=4:sw=4
 import argparse
 import tensorflow as tf
-import tensorflow.contrib.slim as slim
 
+import tf_slim as slim
+ 
 #comment
 
 def _batch_norm_fn(x, scope=None):
@@ -13,7 +14,7 @@ def _batch_norm_fn(x, scope=None):
 
 def create_link(
         incoming, network_builder, scope, nonlinearity=tf.nn.elu,
-        weights_initializer=tf.truncated_normal_initializer(stddev=1e-3),
+        weights_initializer=tf.keras.initializers.TruncatedNormal(mean = 0.0, stddev=1e-3),
         regularizer=None, is_first=False, summarize_activations=True):
     if is_first:
         network = incoming
@@ -43,7 +44,7 @@ def create_link(
 
 def create_inner_block(
         incoming, scope, nonlinearity=tf.nn.elu,
-        weights_initializer=tf.truncated_normal_initializer(1e-3),
+    weights_initializer=tf.keras.initializers.TruncatedNormal(mean = 0.0, stddev = 1e-3),
         bias_initializer=tf.zeros_initializer(), regularizer=None,
         increase_dim=False, summarize_activations=True):
     n = incoming.get_shape().as_list()[-1]
@@ -71,7 +72,7 @@ def create_inner_block(
 
 
 def residual_block(incoming, scope, nonlinearity=tf.nn.elu,
-                   weights_initializer=tf.truncated_normal_initializer(1e3),
+                   weights_initializer=tf.keras.initializers.TruncatedNormal(mean = 0.0, stddev=1e-3),
                    bias_initializer=tf.zeros_initializer(), regularizer=None,
                    increase_dim=False, is_first=False,
                    summarize_activations=True):
@@ -88,10 +89,10 @@ def residual_block(incoming, scope, nonlinearity=tf.nn.elu,
 
 def _create_network(incoming, reuse=None, weight_decay=1e-8):
     nonlinearity = tf.nn.elu
-    conv_weight_init = tf.truncated_normal_initializer(stddev=1e-3)
+    conv_weight_init = tf.keras.initializers.TruncatedNormal(mean = 0.0, stddev=1e-3)
     conv_bias_init = tf.zeros_initializer()
     conv_regularizer = slim.l2_regularizer(weight_decay)
-    fc_weight_init = tf.truncated_normal_initializer(stddev=1e-3)
+    fc_weight_init = tf.keras.initializers.TruncatedNormal(mean = 0.0, stddev=1e-3)
     fc_bias_init = tf.zeros_initializer()
     fc_regularizer = slim.l2_regularizer(weight_decay)
 
@@ -206,6 +207,32 @@ def main():
         features, _ = factory_fn(image_var, reuse=None)
         features = tf.identity(features, name="features")
 
+        print("-------------------------------------\n",type(input_var), type(features), type(image_var))
+
+        saver = tf.train.Saver(slim.get_variables_to_restore())
+        saver.restore(session, args.checkpoint_in)
+
+        converter = tf.lite.TFLiteConverter.from_session(session, [input_var], [features])
+        #converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS,tf.lite.OpsSet.SELECT_TF_OPS]
+        #converter.optimizations = []
+        #converter.allow_custom_ops=True
+        #converter.experimental_new_converter = True
+        tflite_model = converter.convert()
+        open("converted_modelencf.tflite", "wb").write(tflite_model)
+
+    '''
+
+    with tf.Session(graph=tf.Graph()) as session:
+        input_var = tf.placeholder(
+            tf.uint8, (None, 128, 64, 3), name="images")
+        image_var = tf.map_fn(
+            lambda x: _preprocess(x), tf.cast(input_var, tf.float32),
+            back_prop=False)
+
+        factory_fn = _network_factory()
+        features, _ = factory_fn(image_var, reuse=None)
+        features = tf.identity(features, name="features")
+
         saver = tf.train.Saver(slim.get_variables_to_restore())
         saver.restore(session, args.checkpoint_in)
 
@@ -213,8 +240,8 @@ def main():
             session, tf.get_default_graph().as_graph_def(),
             [features.name.split(":")[0]])
         with tf.gfile.GFile(args.graphdef_out, "wb") as file_handle:
-            file_handle.write(output_graph_def.SerializeToString())
-
+            file_handle.write(output_graph_def.SerializeToString()) '''
+ 
 
 if __name__ == "__main__":
     main()
