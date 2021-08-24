@@ -3,6 +3,7 @@ import argparse
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
+#comment
 
 def _batch_norm_fn(x, scope=None):
     if scope is None:
