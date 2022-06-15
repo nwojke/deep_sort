@@ -81,7 +81,7 @@ def ob_detection():
                 pass
             
             fps = 1.0 / (time.time() - start_time)
-            cv2.putText(frame, str("FPS: %.2f" % fps),(30,30),0, 0.75, (0,0,255),2)
+            # cv2.putText(frame, str("FPS: %.2f" % fps),(30,30),0, 0.75, (0,0,255),2)
 
             result = cv2.cvtColor(frame,cv2.COLOR_RGB2BGR)        
             cv2.imshow("result",result)
