@@ -36,10 +36,9 @@ The dependency functions are been declared in the ./core/dependencies.py and ./c
 
 We assume resources have been extracted to the repository root directory.
 ```
-python deep_track.py 
-
+python deep_track.py
 ```
-Check `python deep_track.py -h` for an overview of available options.
+Check `python deep_track.py` for an overview of available options.
 There are also scripts in the repository to visualize results, generate videos,
 and evaluate the MOT challenge benchmark.
 
