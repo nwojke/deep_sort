@@ -58,9 +58,11 @@ def min_cost_matching(
     cost_matrix[cost_matrix > max_distance] = max_distance + 1e-5
     #indices = linear_assignment(cost_matrix)
     # works for yolov3+tensorflow
+    '''
     indices = linear_sum_assignment(cost_matrix)
     indices = np.asarray(indices)
     indices = np.transpose(indices)
+    '''
     # works for yolov5+pytorch
     row_indices, col_indices = linear_sum_assignment(cost_matrix)
 
