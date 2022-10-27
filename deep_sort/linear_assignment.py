@@ -59,11 +59,15 @@ def min_cost_matching(
     #indices = linear_assignment(cost_matrix)
     # works for yolov3+tensorflow
     '''
+    # https://github.com/theAIGuysCode/yolov3_deepsort
+    #from sklearn.utils.linear_assignment_ import linear_assignment
     indices = linear_sum_assignment(cost_matrix)
     indices = np.asarray(indices)
     indices = np.transpose(indices)
     '''
     # works for yolov5+pytorch
+    # https://github.com/duongcongnha/Vehicle-tracking/
+    # https://github.com/ZQPei/deep_sort_pytorch
     row_indices, col_indices = linear_sum_assignment(cost_matrix)
 
     matches, unmatched_tracks, unmatched_detections = [], [], []
