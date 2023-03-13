@@ -1,7 +1,7 @@
 # vim: expandtab:ts=4:sw=4
 from __future__ import absolute_import
 import numpy as np
-from sklearn.utils.linear_assignment_ import linear_assignment
+from scipy.optimize import linear_sum_assignment as linear_assignment
 from . import kalman_filter
 
 
@@ -56,6 +56,7 @@ def min_cost_matching(
         tracks, detections, track_indices, detection_indices)
     cost_matrix[cost_matrix > max_distance] = max_distance + 1e-5
     indices = linear_assignment(cost_matrix)
+    indices = np.hstack([indices[0].reshape(((indices[0].shape[0]), 1)),indices[1].reshape(((indices[0].shape[0]), 1))])
 
     matches, unmatched_tracks, unmatched_detections = [], [], []
     for col, detection_idx in enumerate(detection_indices):
