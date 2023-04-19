@@ -4,7 +4,11 @@ import errno
 import argparse
 import numpy as np
 import cv2
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+    
+physical_devices = tf.config.experimental.list_physical_devices('GPU')
+if len(physical_devices) > 0:
+    tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 
 def _run_in_batches(f, data_dict, out, batch_size):
@@ -72,15 +76,15 @@ class ImageEncoder(object):
 
     def __init__(self, checkpoint_filename, input_name="images",
                  output_name="features"):
-        self.session = tf.Session()
-        with tf.gfile.GFile(checkpoint_filename, "rb") as file_handle:
-            graph_def = tf.GraphDef()
+        self.session = tf.compat.v1.Session()
+        with tf.compat.v1.gfile.GFile(checkpoint_filename, "rb") as file_handle:
+            graph_def = tf.compat.v1.GraphDef()
             graph_def.ParseFromString(file_handle.read())
         tf.import_graph_def(graph_def, name="net")
-        self.input_var = tf.get_default_graph().get_tensor_by_name(
-            "net/%s:0" % input_name)
-        self.output_var = tf.get_default_graph().get_tensor_by_name(
-            "net/%s:0" % output_name)
+        self.input_var = tf.compat.v1.get_default_graph().get_tensor_by_name(
+            "%s:0" % input_name)
+        self.output_var = tf.compat.v1.get_default_graph().get_tensor_by_name(
+            "%s:0" % output_name)
 
         assert len(self.output_var.get_shape()) == 2
         assert len(self.input_var.get_shape()) == 4
