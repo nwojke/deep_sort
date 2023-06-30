@@ -53,8 +53,13 @@ def extract_image_patch(image, bbox, patch_shape):
         bbox[0] -= (new_width - bbox[2]) / 2
         bbox[2] = new_width
 
-    # convert to top left, bottom right
-    bbox[2:] += bbox[:2]
+    # convert to top left, bottom right,
+    # box is (x, y, width, height). In order
+    # to get right bottom corner we need to
+    #  add width and height to x and y
+    # correspondingly and subtract 1
+    # as on line 67 for images rects
+    bbox[2:] += bbox[:2] - 1
     bbox = bbox.astype(np.int)
 
     # clip at image boundaries

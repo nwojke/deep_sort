@@ -23,7 +23,7 @@ def iou(bbox, candidates):
         occluded by the candidate.
 
     """
-    bbox_tl, bbox_br = bbox[:2], bbox[:2] + bbox[2:]
+    bbox_tl, bbox_br = bbox[:2], bbox[:2] + bbox[2:] - 1
     candidates_tl = candidates[:, :2]
     candidates_br = candidates[:, :2] + candidates[:, 2:]
 
