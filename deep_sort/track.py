@@ -72,13 +72,14 @@ class Track:
         self.age = 1
         self.time_since_update = 0
 
-        self.state = TrackState.Tentative
         self.features = []
         if feature is not None:
             self.features.append(feature)
 
         self._n_init = n_init
         self._max_age = max_age
+
+        self.state = TrackState.Tentative if self.hits < self._n_init else TrackState.Confirmed
 
     def to_tlwh(self):
         """Get current position in bounding box format `(top left x, top left y,
