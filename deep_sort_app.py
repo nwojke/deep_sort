@@ -114,7 +114,7 @@ def create_detections(detection_mat, frame_idx, min_height=0):
         Returns detection responses at given frame index.
 
     """
-    frame_indices = detection_mat[:, 0].astype(np.int)
+    frame_indices = detection_mat[:, 0].astype(int)
     mask = frame_indices == frame_idx
 
     detection_list = []

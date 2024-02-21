@@ -113,7 +113,7 @@ class Visualization(object):
         self.viewer.thickness = 2
         for track_id, box in zip(track_ids, boxes):
             self.viewer.color = create_unique_color_uchar(track_id)
-            self.viewer.rectangle(*box.astype(np.int), label=str(track_id))
+            self.viewer.rectangle(*box.astype(int), label=str(track_id))
 
     def draw_detections(self, detections):
         self.viewer.thickness = 2
@@ -128,7 +128,7 @@ class Visualization(object):
                 continue
             self.viewer.color = create_unique_color_uchar(track.track_id)
             self.viewer.rectangle(
-                *track.to_tlwh().astype(np.int), label=str(track.track_id))
+                *track.to_tlwh().astype(int), label=str(track.track_id))
             # self.viewer.gaussian(track.mean[:2], track.covariance[:2, :2],
             #                      label="%d" % track.track_id)
 #
