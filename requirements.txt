@@ -1,0 +1,7 @@
+Cython
+numpy
+opencv
+tensorflow[and-cuda]
+scikit-learn
+scipy
+tf_slim
