@@ -5,7 +5,7 @@ import argparse
 import numpy as np
 import cv2
 import tensorflow as tf
-tf.compat.v1.disable_eager_execution()  # Add this at the top if needed for compatibility
+tf.compat.v1.disable_eager_execution()  # TF 2.x compatible
 
 
 
