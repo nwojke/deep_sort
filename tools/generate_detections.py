@@ -5,6 +5,8 @@ import argparse
 import numpy as np
 import cv2
 import tensorflow as tf
+tf.compat.v1.disable_eager_execution()  # Add this at the top if needed for compatibility
+
 
 
 def _run_in_batches(f, data_dict, out, batch_size):
@@ -55,7 +57,7 @@ def extract_image_patch(image, bbox, patch_shape):
 
     # convert to top left, bottom right
     bbox[2:] += bbox[:2]
-    bbox = bbox.astype(np.int)
+    bbox = bbox.astype(int)
 
     # clip at image boundaries
     bbox[:2] = np.maximum(0, bbox[:2])
@@ -70,22 +72,32 @@ def extract_image_patch(image, bbox, patch_shape):
 
 class ImageEncoder(object):
 
+    
+
     def __init__(self, checkpoint_filename, input_name="images",
                  output_name="features"):
-        self.session = tf.Session()
-        with tf.gfile.GFile(checkpoint_filename, "rb") as file_handle:
-            graph_def = tf.GraphDef()
+        # Use TensorFlow 2.x compatible session
+        self.session = tf.compat.v1.Session()
+
+        # Load the graph definition file
+        with tf.io.gfile.GFile(checkpoint_filename, "rb") as file_handle:
+            graph_def = tf.compat.v1.GraphDef()
             graph_def.ParseFromString(file_handle.read())
+        
+        # Import the graph and get the input and output tensors
         tf.import_graph_def(graph_def, name="net")
-        self.input_var = tf.get_default_graph().get_tensor_by_name(
+        self.input_var = tf.compat.v1.get_default_graph().get_tensor_by_name(
             "net/%s:0" % input_name)
-        self.output_var = tf.get_default_graph().get_tensor_by_name(
+        self.output_var = tf.compat.v1.get_default_graph().get_tensor_by_name(
             "net/%s:0" % output_name)
 
+        # Validate the tensor shapes
         assert len(self.output_var.get_shape()) == 2
         assert len(self.input_var.get_shape()) == 4
         self.feature_dim = self.output_var.get_shape().as_list()[-1]
         self.image_shape = self.input_var.get_shape().as_list()[1:]
+
+
 
     def __call__(self, data_x, batch_size=32):
         out = np.zeros((len(data_x), self.feature_dim), np.float32)
