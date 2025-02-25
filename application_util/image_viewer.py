@@ -252,7 +252,7 @@ class ImageViewer(object):
         if colors is None:
             colors = np.repeat(
                 self._color, len(points)).reshape(3, len(points)).T
-        indices = (points + .5).astype(np.int)
+        indices = (points + .5).astype(np.int64)
         self.image[indices[:, 1], indices[:, 0], :] = colors
 
     def enable_videowriter(self, output_filename, fourcc_string="MJPG",
