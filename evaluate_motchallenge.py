@@ -27,7 +27,7 @@ def parse_args():
         "box height. Detections with height smaller than this value are "
         "disregarded", default=0, type=int)
     parser.add_argument(
-        "--nms_max_overlap",  help="Non-maxima suppression threshold: Maximum "
+        "--nms_max_overlap",  help="Non-maximum suppression threshold: Maximum "
         "detection overlap.", default=1.0, type=float)
     parser.add_argument(
         "--max_cosine_distance", help="Gating threshold for cosine distance "

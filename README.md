@@ -31,7 +31,6 @@ Limited, 2016.
 ```
 We have replaced the appearance descriptor with a custom deep convolutional
 neural network (see below).
-```
 
 ## Running the tracker
 

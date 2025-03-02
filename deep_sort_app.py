@@ -144,7 +144,7 @@ def run(sequence_dir, detection_file, output_file, min_confidence,
         Detection confidence threshold. Disregard all detections that have
         a confidence lower than this value.
     nms_max_overlap: float
-        Maximum detection overlap (non-maxima suppression threshold).
+        Maximum detection overlap (non-maximum suppression threshold).
     min_detection_height : int
         Detection height threshold. Disregard all detections that have
         a height lower than this value.
@@ -171,7 +171,7 @@ def run(sequence_dir, detection_file, output_file, min_confidence,
             seq_info["detections"], frame_idx, min_detection_height)
         detections = [d for d in detections if d.confidence >= min_confidence]
 
-        # Run non-maxima suppression.
+        # Run non-maximum suppression.
         boxes = np.array([d.tlwh for d in detections])
         scores = np.array([d.confidence for d in detections])
         indices = preprocessing.non_max_suppression(
@@ -241,7 +241,7 @@ def parse_args():
         "box height. Detections with height smaller than this value are "
         "disregarded", default=0, type=int)
     parser.add_argument(
-        "--nms_max_overlap",  help="Non-maxima suppression threshold: Maximum "
+        "--nms_max_overlap",  help="Non-maximum suppression threshold: Maximum "
         "detection overlap.", default=1.0, type=float)
     parser.add_argument(
         "--max_cosine_distance", help="Gating threshold for cosine distance "
