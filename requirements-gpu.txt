@@ -1,0 +1,6 @@
+numpy<2.0.0
+opencv-python
+scipy
+tensorflow[and-cuda]==2.10.0
+tf-slim
+tf-keras

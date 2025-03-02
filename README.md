@@ -7,22 +7,17 @@ We extend the original [SORT](https://github.com/abewley/sort) algorithm to
 integrate appearance information based on a deep appearance descriptor.
 See the [arXiv preprint](https://arxiv.org/abs/1703.07402) for more information.
 
-## Dependencies
-
-The code is compatible with Python 2.7 and 3. The following dependencies are
-needed to run the tracker:
-
-* NumPy
-* sklearn
-* OpenCV
-
-Additionally, feature generation requires TensorFlow (>= 1.0).
-
 ## Installation
 
-First, clone the repository:
+First, clone the repository and install dependencies:
 ```
 git clone https://github.com/nwojke/deep_sort.git
+cd deep_sort
+
+# The following command installs all the dependencies required to run the
+# tracker and regenerate detections. If you only need to run the tracker with
+# existing detections, you can use pip install -r requirements.txt instead.
+pip install -r requirements-gpu.txt
 ```
 Then, download pre-generated detections and the CNN checkpoint file from
 [here](https://drive.google.com/open?id=18fKzfqnqhqW3s9zwsCbnVJ5XF2JFeqMp).
@@ -36,6 +31,7 @@ Limited, 2016.
 ```
 We have replaced the appearance descriptor with a custom deep convolutional
 neural network (see below).
+```
 
 ## Running the tracker
 
