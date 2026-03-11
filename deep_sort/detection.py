@@ -14,6 +14,8 @@ class Detection(object):
         Detector confidence score.
     feature : array_like
         A feature vector that describes the object contained in this image.
+    class_id : int
+        Class ID of the detected object.
 
     Attributes
     ----------
@@ -23,13 +25,16 @@ class Detection(object):
         Detector confidence score.
     feature : ndarray | NoneType
         A feature vector that describes the object contained in this image.
+    class_id : int
+        Class ID of the detected object.
 
     """
 
-    def __init__(self, tlwh, confidence, feature):
+    def __init__(self, tlwh, confidence, feature, class_id=0):
         self.tlwh = np.asarray(tlwh, dtype=np.float64)
         self.confidence = float(confidence)
         self.feature = np.asarray(feature, dtype=np.float32)
+        self.class_id = class_id
 
     def to_tlbr(self):
         """Convert bounding box to format `(min x, min y, max x, max y)`, i.e.,

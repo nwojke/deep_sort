@@ -1,3 +1,6 @@
 numpy
 opencv-python
 scipy
+torch
+torchvision
+ultralytics

@@ -78,61 +78,88 @@ class Tracker:
             self._initiate_track(detections[detection_idx])
         self.tracks = [t for t in self.tracks if not t.is_deleted()]
 
-        # Update distance metric.
+        # Update distance metric using EMA features.
         active_targets = [t.track_id for t in self.tracks if t.is_confirmed()]
         features, targets = [], []
         for track in self.tracks:
-            if not track.is_confirmed():
+            if not track.is_confirmed() or track.ema_feature is None:
                 continue
-            features += track.features
-            targets += [track.track_id for _ in track.features]
-            track.features = []
-        self.metric.partial_fit(
-            np.asarray(features), np.asarray(targets), active_targets)
+            features.append(track.ema_feature)
+            targets.append(track.track_id)
+            track.features = []  # Clear the features list
+        if features:
+            self.metric.partial_fit(
+                np.asarray(features), np.asarray(targets), active_targets)
 
     def _match(self, detections):
-
-        def gated_metric(tracks, dets, track_indices, detection_indices):
-            features = np.array([dets[i].feature for i in detection_indices])
-            targets = np.array([tracks[i].track_id for i in track_indices])
-            cost_matrix = self.metric.distance(features, targets)
-            cost_matrix = linear_assignment.gate_cost_matrix(
-                self.kf, cost_matrix, tracks, dets, track_indices,
-                detection_indices)
-
-            return cost_matrix
-
-        # Split track set into confirmed and unconfirmed tracks.
-        confirmed_tracks = [
-            i for i, t in enumerate(self.tracks) if t.is_confirmed()]
-        unconfirmed_tracks = [
-            i for i, t in enumerate(self.tracks) if not t.is_confirmed()]
-
-        # Associate confirmed tracks using appearance features.
-        matches_a, unmatched_tracks_a, unmatched_detections = \
-            linear_assignment.matching_cascade(
-                gated_metric, self.metric.matching_threshold, self.max_age,
-                self.tracks, detections, confirmed_tracks)
-
-        # Associate remaining tracks together with unconfirmed tracks using IOU.
-        iou_track_candidates = unconfirmed_tracks + [
-            k for k in unmatched_tracks_a if
-            self.tracks[k].time_since_update == 1]
-        unmatched_tracks_a = [
-            k for k in unmatched_tracks_a if
-            self.tracks[k].time_since_update != 1]
-        matches_b, unmatched_tracks_b, unmatched_detections = \
-            linear_assignment.min_cost_matching(
-                iou_matching.iou_cost, self.max_iou_distance, self.tracks,
-                detections, iou_track_candidates, unmatched_detections)
-
-        matches = matches_a + matches_b
-        unmatched_tracks = list(set(unmatched_tracks_a + unmatched_tracks_b))
-        return matches, unmatched_tracks, unmatched_detections
+        # Group detections by class ID
+        detections_by_class = {}
+        for i, det in enumerate(detections):
+            if det.class_id not in detections_by_class:
+                detections_by_class[det.class_id] = []
+            detections_by_class[det.class_id].append(i)
+        
+        # Group tracks by class ID
+        tracks_by_class = {}
+        for i, track in enumerate(self.tracks):
+            if track.class_id not in tracks_by_class:
+                tracks_by_class[track.class_id] = []
+            tracks_by_class[track.class_id].append(i)
+        
+        all_matches = []
+        all_unmatched_tracks = []
+        all_unmatched_detections = []
+        
+        # Process each class separately
+        for class_id in set(detections_by_class.keys()).union(tracks_by_class.keys()):
+            class_detections = detections_by_class.get(class_id, [])
+            class_tracks = tracks_by_class.get(class_id, [])
+            
+            if not class_detections and not class_tracks:
+                continue
+            
+            def gated_metric(tracks, dets, track_indices, detection_indices):
+                features = np.array([dets[i].feature for i in detection_indices])
+                targets = np.array([tracks[i].track_id for i in track_indices])
+                cost_matrix = self.metric.distance(features, targets)
+                cost_matrix = linear_assignment.gate_cost_matrix(
+                    self.kf, cost_matrix, tracks, dets, track_indices,
+                    detection_indices)
+                return cost_matrix
+            
+            # Split track set into confirmed and unconfirmed tracks.
+            confirmed_tracks = [i for i in class_tracks if self.tracks[i].is_confirmed()]
+            unconfirmed_tracks = [i for i in class_tracks if not self.tracks[i].is_confirmed()]
+            
+            # Associate confirmed tracks using appearance features.
+            # First, filter detections to only include those of the current class
+            class_detections_indices = class_detections
+            matches_a, unmatched_tracks_a, unmatched_detections_class = \
+                linear_assignment.matching_cascade(
+                    gated_metric, self.metric.matching_threshold, self.max_age,
+                    self.tracks, detections, confirmed_tracks, class_detections_indices)
+            
+            # Associate remaining tracks together with unconfirmed tracks using IOU.
+            iou_track_candidates = unconfirmed_tracks + [
+                k for k in unmatched_tracks_a if
+                self.tracks[k].time_since_update == 1]
+            unmatched_tracks_a = [
+                k for k in unmatched_tracks_a if
+                self.tracks[k].time_since_update != 1]
+            matches_b, unmatched_tracks_b, unmatched_detections_class = \
+                linear_assignment.min_cost_matching(
+                    iou_matching.iou_cost, self.max_iou_distance, self.tracks,
+                    detections, iou_track_candidates, unmatched_detections_class)
+            
+            all_matches.extend(matches_a + matches_b)
+            all_unmatched_tracks.extend(unmatched_tracks_a + unmatched_tracks_b)
+            all_unmatched_detections.extend(unmatched_detections_class)
+        
+        return all_matches, all_unmatched_tracks, all_unmatched_detections
 
     def _initiate_track(self, detection):
         mean, covariance = self.kf.initiate(detection.to_xyah())
         self.tracks.append(Track(
             mean, covariance, self._next_id, self.n_init, self.max_age,
-            detection.feature))
+            detection.feature, detection.class_id))
         self._next_id += 1
