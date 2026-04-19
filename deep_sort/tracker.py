@@ -80,22 +80,29 @@ class Tracker:
 
         # Update distance metric.
         active_targets = [t.track_id for t in self.tracks if t.is_confirmed()]
-        features, targets = [], []
+        features, local_features, targets = [], [], []
         for track in self.tracks:
             if not track.is_confirmed():
                 continue
             features += track.features
+            local_features += track.local_features
             targets += [track.track_id for _ in track.features]
             track.features = []
+            track.local_features = []
+        lf = np.asarray(local_features) if local_features else None
         self.metric.partial_fit(
-            np.asarray(features), np.asarray(targets), active_targets)
+            np.asarray(features), np.asarray(targets), active_targets,
+            local_features=lf)
 
     def _match(self, detections):
 
         def gated_metric(tracks, dets, track_indices, detection_indices):
             features = np.array([dets[i].feature for i in detection_indices])
             targets = np.array([tracks[i].track_id for i in track_indices])
-            cost_matrix = self.metric.distance(features, targets)
+            lf_list = [dets[i].local_feature for i in detection_indices]
+            local_features = (np.array(lf_list)
+                              if all(x is not None for x in lf_list) else None)
+            cost_matrix = self.metric.distance(features, targets, local_features)
             cost_matrix = linear_assignment.gate_cost_matrix(
                 self.kf, cost_matrix, tracks, dets, track_indices,
                 detection_indices)
@@ -132,7 +139,10 @@ class Tracker:
 
     def _initiate_track(self, detection):
         mean, covariance = self.kf.initiate(detection.to_xyah())
-        self.tracks.append(Track(
+        track = Track(
             mean, covariance, self._next_id, self.n_init, self.max_age,
-            detection.feature))
+            detection.feature)
+        if detection.local_feature is not None:
+            track.local_features.append(detection.local_feature)
+        self.tracks.append(track)
         self._next_id += 1

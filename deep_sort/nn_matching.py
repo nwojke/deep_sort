@@ -120,9 +120,7 @@ class NearestNeighborDistanceMetric(object):
 
     """
 
-    def __init__(self, metric, matching_threshold, budget=None):
-
-
+    def __init__(self, metric, matching_threshold, budget=None, local_weight=0.0):
         if metric == "euclidean":
             self._metric = _nn_euclidean_distance
         elif metric == "cosine":
@@ -133,8 +131,12 @@ class NearestNeighborDistanceMetric(object):
         self.matching_threshold = matching_threshold
         self.budget = budget
         self.samples = {}
+        # local_weight: fraction of distance from JPM local features (0.0 = global only)
+        # e.g. 0.3 → final_dist = 0.7 * global_dist + 0.3 * local_dist
+        self.local_weight = local_weight
+        self.local_samples = {}  # Dict[track_id -> List[ndarray(3072,)]]
 
-    def partial_fit(self, features, targets, active_targets):
+    def partial_fit(self, features, targets, active_targets, local_features=None):
         """Update the distance metric with new data.
 
         Parameters
@@ -145,6 +147,9 @@ class NearestNeighborDistanceMetric(object):
             An integer array of associated target identities.
         active_targets : List[int]
             A list of targets that are currently present in the scene.
+        local_features : Optional[ndarray]
+            An NxK matrix of N local features (e.g. 3072-dim JPM parts).
+            If None, local distance fusion is skipped.
 
         """
         for feature, target in zip(features, targets):
@@ -153,7 +158,15 @@ class NearestNeighborDistanceMetric(object):
                 self.samples[target] = self.samples[target][-self.budget:]
         self.samples = {k: self.samples[k] for k in active_targets}
 
-    def distance(self, features, targets):
+        if local_features is not None:
+            for lf, target in zip(local_features, targets):
+                self.local_samples.setdefault(target, []).append(lf)
+                if self.budget is not None:
+                    self.local_samples[target] = self.local_samples[target][-self.budget:]
+        self.local_samples = {k: self.local_samples[k] for k in active_targets
+                              if k in self.local_samples}
+
+    def distance(self, features, targets, local_features=None):
         """Compute distance between features and targets.
 
         Parameters
@@ -162,6 +175,9 @@ class NearestNeighborDistanceMetric(object):
             An NxM matrix of N features of dimensionality M.
         targets : List[int]
             A list of targets to match the given `features` against.
+        local_features : Optional[ndarray]
+            An NxK matrix of N local features for distance-level fusion.
+            If None or local_weight==0, global-only distance is returned.
 
         Returns
         -------
@@ -174,4 +190,19 @@ class NearestNeighborDistanceMetric(object):
         cost_matrix = np.zeros((len(targets), len(features)))
         for i, target in enumerate(targets):
             cost_matrix[i, :] = self._metric(self.samples[target], features)
+
+        # Distance-level fusion: per-track — fuse only tracks that have local gallery,
+        # fall back to global-only for tracks that don't (e.g. newly confirmed tracks).
+        # Previous all() guard caused fusion to NEVER activate because there is always
+        # at least one newly confirmed track without local_samples in the batch.
+        if (local_features is not None
+                and self.local_weight > 0.0
+                and len(self.local_samples) > 0):
+            for i, target in enumerate(targets):
+                if target in self.local_samples:
+                    local_dist = self._metric(self.local_samples[target], local_features)
+                    cost_matrix[i, :] = ((1.0 - self.local_weight) * cost_matrix[i, :]
+                                         + self.local_weight * local_dist)
+                # else: no local gallery for this track yet → keep global-only row
+
         return cost_matrix
